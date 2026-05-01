@@ -34,6 +34,7 @@ QUICK START
 
 Using TidyPanel is meant to be completely seamless:
 
+```r
 library(TidyPanel)
 
 # Just provide the path. The engine automatically handles block targeting, 
@@ -42,18 +43,21 @@ clean_data <- read_messy_panel("data_raw/messy_export.xlsx")
 
 # Start modeling immediately!
 summary(clean_data)
+```
 
 
 ADVANCED USAGE
 
 If your lab or organization uses proprietary sentinel values for missing data, simply inject them:
 
+```r
 clean_data <- read_messy_panel(
   file_path = "data_raw/messy_export.xlsx",
   sheet = 1,
   na_strings = c(NA, "TBA", "Not Available", "Omitted"),
   clean_vars = TRUE
 )
+```
 
 
 EXAMPLE USE CASES INCLUDED
