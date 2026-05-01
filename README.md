@@ -27,7 +27,7 @@ INSTALLATION
 Install directly from GitHub (ensure devtools is installed):
 
 # install.packages("devtools")
-devtools::install_github("your-username/TidyPanel")
+devtools::install_github("TonyIsFool/TidyPanel")
 
 
 QUICK START
