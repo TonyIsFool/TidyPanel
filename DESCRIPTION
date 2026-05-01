@@ -1,0 +1,15 @@
+Package: TidyPanel
+Title: Universal Messy Panel Data Cleaner
+Version: 0.1.0
+Authors@R: person("Tony", "Lu", email = "xulunt123@gmail.com", role = c("aut", "cre"))
+Description: A domain-agnostic R toolkit that automatically extracts, standardizes, and cleans messy Excel panel data. It seamlessly resolves international numeric formats, Excel crash tokens, and structural noise.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+    dplyr,
+    stringr,
+    rlang,
+    DescTools,
+    readxl

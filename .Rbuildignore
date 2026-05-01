@@ -1,0 +1,5 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.gitignore$
+^data_raw$
+^data_clean$
