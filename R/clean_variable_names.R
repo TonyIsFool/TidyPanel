@@ -93,6 +93,18 @@ clean_variable_names <- function(data) {
     }
   }
   
+  # Convert to proper snake_case:
+  # 1. Replace any non-alphanumeric character (spaces, dashes, dots, /) with underscore
+  clean_names <- gsub("[^a-z0-9]+", "_", clean_names)
+  # 2. Collapse multiple consecutive underscores into one
+  clean_names <- gsub("_+", "_", clean_names)
+  # 3. Strip leading and trailing underscores
+  clean_names <- gsub("^_|_$", "", clean_names)
+  # 4. Ensure no empty names (fallback to 'var')
+  clean_names[clean_names == ""] <- "var"
+  # 5. Make names unique if there are duplicates after cleaning
+  clean_names <- make.unique(clean_names, sep = "_")
+  
   colnames(data) <- clean_names
   return(data)
 }
