@@ -33,7 +33,7 @@
 #' @export
 #' @importFrom readxl read_excel excel_sheets
 #' @importFrom stringr str_trim str_replace str_remove_all str_squish str_extract
-read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "#N/A", "NULL", "\u65e0", "S", "D", "ND", "N/A", "*", "**", "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR", "--", "---", "n.a.", "N.A.", "n/a", "Not Applicable"), clean_vars = TRUE, auto_pivot = FALSE, return_audit = FALSE) {
+read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "#N/A", "NULL", "无", "S", "D", "ND", "N/A", "*", "**", "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR", "--", "---", "n.a.", "N.A.", "n/a", "Not Applicable"), clean_vars = TRUE, auto_pivot = FALSE, return_audit = FALSE) {
   
   audit_log <- list()
   
@@ -195,11 +195,42 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       if (header_row_index == true_start) {
           true_start <- true_start + 1
       }
+      # Helper: detect rows that are pure noise (random-looking uppercase/lowercase strings
+      # with no semantic value, e.g. "xdasdad", "WEDEWADAW"). Such rows should NOT be
+      # concatenated onto real column names.
+      is_noise_header_row <- function(row_vals) {
+          non_empty <- row_vals[!is.na(row_vals) & stringr::str_trim(row_vals) != ""]
+          if (length(non_empty) == 0) return(FALSE)
+          # A row is "noise" if every non-empty cell:
+          #   (a) contains only letters (no spaces, digits, underscores, or punctuation), AND
+          #   (b) looks random: either all-uppercase with 5+ chars, or a mixed-case string
+          #       whose character bigram entropy suggests it has no real word structure.
+          looks_random <- vapply(non_empty, function(x) {
+              x <- stringr::str_trim(x)
+              # Must be letters-only (no spaces/digits/special chars)
+              if (!grepl("^[A-Za-z]+$", x)) return(FALSE)
+              # Short common words (<=4 chars) are NOT noise (e.g. "ID", "Age")
+              if (nchar(x) <= 4) return(FALSE)
+              # If it looks like a known word prefix or is title-cased, not noise
+              if (grepl("^[A-Z][a-z]", x)) return(FALSE)
+              # Otherwise treat as noise (all-caps random string like "WEDEWADAW")
+              TRUE
+          }, logical(1))
+          # Only flag as noise if ALL non-empty cells in this row are random-looking
+          all(looks_random)
+      }
+
       header_rows_list <- list()
       for (r in 1:header_row_index) {
           row_vals <- raw_mat[r, ]
           non_empty_count <- sum(!is.na(row_vals) & stringr::str_trim(row_vals) != "")
           if (non_empty_count > 1 || r == header_row_index) {
+              # Skip rows that are pure noise garbage
+              if (r != header_row_index && is_noise_header_row(row_vals)) {
+                  audit_log[["Noise Header Rows Discarded"]] <-
+                      c(audit_log[["Noise Header Rows Discarded"]], r)
+                  next
+              }
               header_rows_list <- append(header_rows_list, list(row_vals))
           }
       }
