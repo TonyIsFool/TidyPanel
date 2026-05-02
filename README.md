@@ -1,85 +1,52 @@
-TidyPanel: Universal Messy Panel Data Cleaner for R
+# TidyPanel <img src="man/figures/logo.png" align="right" height="139" />
 
-TidyPanel is a robust, domain-agnostic toolkit designed to automatically standardize and clean complex tabular data exported from commercial enterprise systems (SAP, ERPs), healthcare records, logistics software, and legacy HR databases.
+<!-- badges: start -->
+<!-- badges: end -->
 
-It follows a fire-and-forget philosophy. You provide an Excel path; it intelligently clusters data blocks, resolves structural anomalies, and outputs regression-ready panels.
+**TidyPanel** is an industrial-grade parser designed to extract clean, standardized data frames from heavily malformed, human-readable Excel reports. If you have ever struggled to parse financial statements, ERP exports, or complex tables with N-dimensional headers, decoy rows, and embedded subtotals, `TidyPanel` is built for you.
 
-FEATURES
+## Installation
 
-Multi-Format Numeric Standardization
-Perfectly parses international number formats (Euro 50.000,00, Swiss 50'000.00, spaced 50 000), trailing minuses (1234.56-), spaced parentheses ( 123.45 ), and percentages 12.5%.
+You can install the development version of TidyPanel from GitHub with:
 
-Excel Date Anti-Corruption
-Automatically detects Excel serial timestamps inadvertently placed as column headers (e.g., 44197) and mathematically converts them back to valid YYYY-MM-DD strings.
-
-Aggressive Error Annihilation
-Seamlessly intercepts and neutralizes Excel formula crash tokens (#VALUE!, #REF!, #DIV/0!) and institutional missing sentinels (none, NR, *, -) into standard NA.
-
-Aggregate Row Purge
-Smart regex radars detect and strip contaminating subtotal and average rows to prevent statistical bias.
-
-Density-Based Auto-Discovery
-Uses a heuristic density radar to isolate the primary data block, cutting through multi-header structures, disjointed titles, and trailing footnotes.
-
-
-INSTALLATION
-
-Install directly from GitHub (ensure devtools is installed):
-
+``` r
 # install.packages("devtools")
-devtools::install_github("TonyIsFool/TidyPanel")
-
-
-QUICK START
-
-Using TidyPanel is meant to be completely seamless:
-
-```r
-library(TidyPanel)
-
-# Just provide the path. The engine automatically handles block targeting, 
-# ghost header stripping, and international numeric parsing.
-clean_data <- read_messy_panel("data_raw/messy_export.xlsx")
-
-# Start modeling immediately!
-summary(clean_data)
+devtools::install_github("TonyL/TidyPanel")
 ```
 
+## Why TidyPanel?
 
-ADVANCED USAGE
+Real-world commercial data is rarely tidy. It contains multi-line merged headers, embedded subtotal rows, empty "ghost" columns, and categorical hierarchies defined purely by visual indentation (e.g., in a Profit & Loss statement).
 
-If your lab or organization uses proprietary sentinel values for missing data, simply inject them:
+`TidyPanel` uses a multi-phase heuristic engine to:
+1. **Bypass Decoy Rows**: Skips irrelevant metadata at the top of the sheet.
+2. **N-Dimensional Header Stitching**: Intelligently identifies multiline headers and forward-fills merged cells to create flat, readable column names.
+3. **Indentation Hierarchy Extraction**: Uses leading spaces to identify parent-child categorical relationships and creates a `parent_category` column.
+4. **Smart Data Amputation**: Automatically removes decorative page breaks, mid-table subtotals, and ghost aggregate rows.
+5. **Auto Pivot**: Detects temporal columns (e.g., Q1, 2021, FY23) and pivots them into a tidy, long format.
+6. **Semantic Cleaners**: Automatically detects and normalizes accounting dashes, non-standard scientific notation, and financial multipliers (e.g., "1.5M" -> 1500000).
 
-```r
-clean_data <- read_messy_panel(
-  file_path = "data_raw/messy_export.xlsx",
-  sheet = 1,
-  na_strings = c(NA, "TBA", "Not Available", "Omitted"),
-  clean_vars = TRUE
-)
+## 100% Transparency: The Audit Log
+
+Data parsing should never be a "black box". TidyPanel features a unique **Audit Log** that explicitly records every transformation applied to your data. By setting `return_audit = TRUE`, you get both the cleaned data and a precise ledger of what was modified.
+
+``` r
+library(TidyPanel)
+
+# Read data and get an audit trail
+result <- read_messy_panel("data_raw/financial_report.xlsx", return_audit = TRUE)
+
+# View the audit trail
+print(result$audit)
+```
+```text
+=== Algorithm Modification Audit Log ===
+                        Operation Count
+1             Decoy Rows Bypassed     5
+2 Indentation Hierarchy Extracted     3
+3       Ghost Bottom Rows Dropped     4
 ```
 
+## License
 
-EXAMPLE USE CASES INCLUDED
-
-We have included 2 safe sample datasets in the inst/extdata/ directory, along with their perfectly cleaned CSV outputs, to demonstrate the engine's capabilities:
-
-1. raw_deep_junk.xlsx (and cleaned_deep_junk.csv): Demonstrates TidyPanel's density radar bypassing massive blocks of non-tabular metadata, random text paragraphs, and report headers at the top of an Excel file to find the true data block.
-2. raw_messy_finance.xlsx (and cleaned_messy_finance.csv): Demonstrates TidyPanel's ability to handle trailing minuses, spaced parentheses, and aggressive Excel crash tokens (#VALUE!, #REF!).
-
-You can test them immediately:
-
-library(TidyPanel)
-path <- system.file("extdata", "raw_deep_junk.xlsx", package = "TidyPanel")
-clean_data <- read_messy_panel(path)
-print(clean_data)
-
-SUPPORT & CONTACT
-
-If you encounter any specific edge cases, extreme datasets that fail to parse, or if you have any questions regarding the package, feel free to reach out via email:
-Tony Lu: xulunt123@gmail.com
-
-
-LICENSE
-
-MIT License. Copyright 2026 Tony Lu
+MIT © Tony Lu

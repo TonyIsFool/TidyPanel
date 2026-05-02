@@ -2,10 +2,11 @@
 
 export(clean_variable_names)
 export(read_messy_panel)
-importFrom(dplyr,"%>%")
 importFrom(readxl,excel_sheets)
 importFrom(readxl,read_excel)
+importFrom(stringr,str_extract)
 importFrom(stringr,str_remove_all)
 importFrom(stringr,str_replace)
+importFrom(stringr,str_squish)
 importFrom(stringr,str_to_lower)
 importFrom(stringr,str_trim)

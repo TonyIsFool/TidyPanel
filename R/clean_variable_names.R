@@ -1,10 +1,24 @@
-#' Clean and standardize variable names
+#' Standardize and Clean Variable Names
 #'
-#' @param data A dataframe containing messy data
-#' @return A dataframe with standardized column names
+#' @description
+#' `clean_variable_names()` standardizes column names in a messy data frame. It converts all names 
+#' to snake_case, strips special characters (except `_`), translates Excel serial dates (e.g., `44197`) 
+#' into ISO date strings (`2021-01-01`), and maps common financial/academic synonyms (e.g., `gvkey`, 
+#' `permno`, `cusip`) to standard names (`id`, `ticker`).
+#'
+#' @param data A `data.frame`. The data frame with messy column names.
+#' @return A `data.frame` with the same data but standardized column names.
+#' 
+#' @examples
+#' \dontrun{
+#' df <- data.frame(`Total Revenue ($)` = 1, `44197` = 2, `PERMNO` = 3, check.names = FALSE)
+#' clean_df <- clean_variable_names(df)
+#' colnames(clean_df)
+#' # Returns: c("total_revenue", "2021-01-01", "id")
+#' }
+#' 
 #' @export
 #' @importFrom stringr str_remove_all str_trim str_to_lower
-#'
 clean_variable_names <- function(data) {
   clean_names <- stringr::str_trim(colnames(data))
   clean_names <- stringr::str_to_lower(clean_names)

@@ -3,3 +3,4 @@
 ^\.gitignore$
 ^data_raw$
 ^data_clean$
+^cran-comments\.md$
