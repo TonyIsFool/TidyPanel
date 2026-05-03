@@ -1,0 +1,82 @@
+---
+title: "Introduction to TidyPanel"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to TidyPanel}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Welcome to TidyPanel
+
+**TidyPanel** is an industrial-grade parser designed to extract clean, standardized data frames from heavily malformed, human-readable Excel reports. If you have ever struggled to parse financial statements, ERP exports, or complex tables with N-dimensional headers, decoy rows, and embedded subtotals, `TidyPanel` is built for you.
+
+## Features
+
+- **N-Dimensional Header Stitching**: Intelligently identifies multiline headers and forward-fills merged cells to create flat, readable column names.
+- **Indentation Hierarchy Extraction**: Uses leading spaces to identify parent-child categorical relationships in accounting and financial reports.
+- **Smart Data Amputation**: Automatically removes decorative page breaks, mid-table subtotals, and ghost aggregate rows.
+- **Auto Pivot**: Automatically detects temporal columns (e.g., Q1, 2021, FY23) and pivots them into a tidy, long format.
+- **Audit Logs**: Full algorithmic transparency via the `return_audit` parameter.
+
+## Basic Usage
+
+To parse an Excel file, simply use the `read_messy_panel()` function.
+
+```{r setup}
+# Load the package (simulated for vignette)
+# library(TidyPanel)
+```
+
+```{r basic_example, eval=FALSE}
+# Extract the first valid data block from the spreadsheet
+df <- read_messy_panel("data_raw/financial_report.xlsx")
+
+# View the clean data
+head(df)
+```
+
+## Advanced Features: Hierarchies and Audit Logs
+
+One of TidyPanel's unique features is its ability to understand structure. Financial tables often use indentation to group rows. TidyPanel extracts this structure and places it in a new column called `parent_category`.
+
+Additionally, data parsing should never be a "black box". TidyPanel allows you to generate an **Audit Log** that explicitly records every transformation applied to your data.
+
+```{r audit_example, eval=FALSE}
+# Run the parser with auditing turned on
+result <- read_messy_panel("data_raw/type_hierarchical_data.xlsx", return_audit = TRUE)
+
+# The cleaned dataframe is in result$data
+clean_df <- result$data
+head(clean_df)
+
+# The audit log is in result$audit
+print(result$audit)
+```
+
+**Example Audit Log Output:**
+
+| Operation | Count |
+| :--- | :--- |
+| Decoy Rows Bypassed | 5 |
+| Indentation Hierarchy Extracted | 3 |
+| Ghost Bottom Rows Dropped | 4 |
+
+This table guarantees 100% transparency. You can save this log alongside your processed data to maintain a strict audit trail of how the messy raw data was mathematically restructured.
+
+## Cleaning Variable Names
+
+By default, TidyPanel standardizes variable names using the underlying `clean_variable_names()` engine. This function converts text to snake_case, removes special currency/percentage symbols, and maps common synonyms (like `gvkey` or `permno`) to standard terms (`id`).
+
+```{r vars, eval=FALSE}
+# Example of variables being cleaned automatically
+df <- read_messy_panel("data_raw/messy_headers.xlsx", clean_vars = TRUE)
+colnames(df)
+```

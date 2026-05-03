@@ -6,3 +6,4 @@
 .DS_Store
 data_raw/
 data_clean/
+..Rcheck
