@@ -382,7 +382,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       }
       
       # Phase 5: Amputate Mid-Table Subtotals
-      subtotal_keywords <- c("subtotal", "\u5c0f\u8ba1", "total:", "sum:")
+      subtotal_keywords <- c("subtotal", "\u5c0f\u8ba1", "total:", "sum:", "gesamt", "summe", "somme", "promedio")
       first_col_lower <- stringr::str_trim(tolower(as.character(df[[1]])))
       subtotal_idx <- vapply(first_col_lower, function(val) {
           if (is.na(val)) return(FALSE)
@@ -423,7 +423,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       # Phase 4: Amputate Trailing Aggregation Rows (Ghost Bottoms)
       tail_n <- min(5, nrow(df))
       if (tail_n > 0) {
-          agg_keywords <- c("total", "sum", "average", "avg", "\u5408\u8ba1", "\u603b\u8ba1", "\u5e73\u5747", "mean")
+          agg_keywords <- c("total", "sum", "average", "avg", "\u5408\u8ba1", "\u603b\u8ba1", "\u5e73\u5747", "mean", "gesamt", "summe", "durchschnitt", "moyenne", "somme", "promedio")
           for (r in seq(nrow(df) - tail_n + 1, nrow(df))) {
               if (!is.na(first_col_lower[r]) && any(vapply(agg_keywords, function(k) grepl(paste0("^", k), first_col_lower[r]), logical(1)))) {
                   audit_log[["Ghost Bottom Rows Dropped"]] <- nrow(df) - r + 1
@@ -454,7 +454,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       colnames(df) <- make.unique(stringr::str_trim(headers), sep = "_")
       
       # Phase 7: Amputate ALL Aggregation Columns (Embedded Subtotals)
-      col_agg_keywords <- c("total", "sum", "subtotal", "ytd", "\u5408\u8ba1", "\u603b\u8ba1", "\u5c0f\u8ba1", "average", "avg")
+      col_agg_keywords <- c("total", "sum", "subtotal", "ytd", "\u5408\u8ba1", "\u603b\u8ba1", "\u5c0f\u8ba1", "average", "avg", "gesamt", "summe", "durchschnitt", "moyenne", "somme", "promedio")
       cols_to_keep <- rep(TRUE, ncol(df))
       subtotal_cols_dropped <- c()
       for (c in seq_len(ncol(df))) {
@@ -541,15 +541,17 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         
         # Phase 11: Semantic Multiplier Engine
         multiplier <- rep(1, length(clean_x))
-        k_idx <- grepl("(?i)[0-9.]+\\s*k$", clean_x) & !is.na(clean_x)
-        m_idx <- grepl("(?i)[0-9.]+\\s*(m|mil|million)$", clean_x) & !is.na(clean_x)
-        b_idx <- grepl("(?i)[0-9.]+\\s*(b|bn|billion)$", clean_x) & !is.na(clean_x)
+        k_idx <- grepl("(?i)[-0-9.]+\\s*k$", clean_x) & !is.na(clean_x)
+        m_idx <- grepl("(?i)[-0-9.]+\\s*(m|mil|million)$", clean_x) & !is.na(clean_x)
+        b_idx <- grepl("(?i)[-0-9.]+\\s*(b|bn|billion)$", clean_x) & !is.na(clean_x)
+        t_idx <- grepl("(?i)[-0-9.]+\\s*(t|tn|trillion)$", clean_x) & !is.na(clean_x)
         
         multiplier[k_idx] <- 1000
         multiplier[m_idx] <- 1000000
         multiplier[b_idx] <- 1000000000
+        multiplier[t_idx] <- 1000000000000
         
-        clean_x <- stringr::str_replace(clean_x, "(?i)\\s*(k|m|mil|million|b|bn|billion)$", "")
+        clean_x <- stringr::str_replace(clean_x, "(?i)\\s*(k|m|mil|million|b|bn|billion|t|tn|trillion)$", "")
         
         clean_x <- stringr::str_replace(clean_x, "\\s*\\*+\\s*$", "")
         clean_x <- stringr::str_replace(clean_x, "\\s*[\\(\\[].*?[\\)\\]]\\s*$", "")
@@ -581,7 +583,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       # Phase 14: Auto-Pivot Engine (Wide to Long)
       if (auto_pivot && nrow(df) > 0) {
           cnames <- colnames(df)
-          temporal_pattern <- "^(19|20)[0-9]{2}(_q[1-4]|_h[1-2])?$|^(q[1-4]|h[1-2]|fy[0-9]+)$"
+          temporal_pattern <- "^(19|20)[0-9]{2}(_q[1-4]|_h[1-2]|_[0-1]?[0-9]|_[a-z]{3})?$|^(q[1-4]|h[1-2]|fy[0-9]+)$|^[a-z]{3}_([0-9]{2}|(19|20)[0-9]{2})$"
           is_temporal <- grepl(temporal_pattern, cnames)
           
           if (sum(is_temporal) >= 2) {
