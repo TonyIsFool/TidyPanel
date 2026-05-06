@@ -55,14 +55,4 @@ result <- read_messy_panel(tmp, auto_pivot = TRUE)
 head(result)
 unlink(tmp)
 
-\donttest{
-# Full file example (not run during automated checks)
-df <- read_messy_panel("data_raw/financial_report.xlsx")
-
-# Return data along with the algorithmic audit log
-result <- read_messy_panel("data_raw/complex_hierarchy.xlsx", return_audit = TRUE)
-head(result$data)
-print(result$audit)
-}
-
 }

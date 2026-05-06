@@ -30,11 +30,9 @@ clean_df <- clean_variable_names(df)
 colnames(clean_df)
 # Returns: c("revenue", "id", "my_custom_column")
 
-\donttest{
 # Excel serial dates are also handled
 df2 <- data.frame(`44197` = 2, check.names = FALSE)
 colnames(clean_variable_names(df2))
 # Returns: "2021-01-01"
-}
 
 }

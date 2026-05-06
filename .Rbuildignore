@@ -11,3 +11,6 @@
 ^fix_chinese\.R$
 ^dev_scripts$
 ^\.github$
+^customers_dna\.html$
+^.*\.Rcheck$
+

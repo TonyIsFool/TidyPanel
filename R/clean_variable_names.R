@@ -21,12 +21,10 @@
 #' colnames(clean_df)
 #' # Returns: c("revenue", "id", "my_custom_column")
 #'
-#' \donttest{
 #' # Excel serial dates are also handled
 #' df2 <- data.frame(`44197` = 2, check.names = FALSE)
 #' colnames(clean_variable_names(df2))
 #' # Returns: "2021-01-01"
-#' }
 #'
 #' @export
 #' @importFrom stringr str_remove_all str_trim str_to_lower
@@ -50,9 +48,9 @@ clean_variable_names <- function(data) {
     "provider id" = "id",
     "employee no." = "id",
     "tracking id" = "id",
-    "身份证号" = "id",
+    "\u8eab\u4efd\u8bc1\u53f7" = "id",
     "patienten-id" = "id",
-    "numéro de patient" = "id",
+    "num\u00e9ro de patient" = "id",
     
     "datadate" = "date",
     "date" = "date",
@@ -63,7 +61,7 @@ clean_variable_names <- function(data) {
     "pay period" = "date",
     "posting date" = "date",
     "dispatch date" = "date",
-    "日期" = "date",
+    "\u65e5\u671f" = "date",
     "datum" = "date",
     "fecha" = "date",
     
@@ -86,17 +84,17 @@ clean_variable_names <- function(data) {
     "destination" = "category",
     "state" = "category",
     "soc code" = "category",
-    "类别" = "category",
+    "\u7c7b\u522b" = "category",
     "kategorie" = "category",
-    "catégorie" = "category",
-    "categoría" = "category",
+    "cat\u00e9gorie" = "category",
+    "categor\u00eda" = "category",
     
     "conm" = "name",
     "company name" = "name",
     "ticker" = "name",
     "ticker symbol" = "name",
     "hospital name" = "name",
-    "名称" = "name",
+    "\u540d\u79f0" = "name",
     "nom" = "name",
     "nombre" = "name",
     
@@ -109,7 +107,7 @@ clean_variable_names <- function(data) {
     "shipping cost" = "value",
     "mean hourly wage" = "value",
     "annual mean wage" = "value",
-    "金额" = "value",
+    "\u91d1\u989d" = "value",
     "betrag" = "value",
     "montant" = "value",
     "importe" = "value",
@@ -124,8 +122,8 @@ clean_variable_names <- function(data) {
   
   regex_dict <- list(
       "revenue" = c("revenue", "sales", "turnover", "umsatz", "chiffre d'affaires", "ingresos"),
-      "profit" = c("profit", "margin", "income", "gewinn", "bénéfice", "beneficio"),
-      "cost" = c("cost", "expense", "cogs", "kosten", "dépense", "gasto")
+      "profit" = c("profit", "margin", "income", "gewinn", "b\u00e9n\u00e9fice", "beneficio"),
+      "cost" = c("cost", "expense", "cogs", "kosten", "d\u00e9pense", "gasto")
   )
   
   for (i in seq_along(clean_names)) {

@@ -28,10 +28,10 @@ normalize_units <- function(data, strip_units = TRUE) {
     cnames <- colnames(data)
     
     # Define regex patterns for different units
-    p_k <- "(?i)(\\bin thousands\\b|\\bin 000s\\b|'000s|'000|\\$k\\b|\\$ k\\b|\\(\\s*k\\s*\\)|\\(千\\)|（千）)"
-    p_m <- "(?i)(\\bin millions\\b|\\bin mln\\b|\\bin millionen\\b|\\ben millions\\b|\\$m\\b|\\$ m\\b|\\(\\s*m\\s*\\)|\\(百万\\)|（百万）)"
-    p_b <- "(?i)(\\bin billions\\b|\\bin bln\\b|\\bin bn\\b|\\$b\\b|\\$ b\\b|\\(\\s*b\\s*\\)|\\(十亿\\)|（十亿）)"
-    p_t <- "(?i)(\\bin trillions\\b|\\$t\\b|\\$ t\\b|\\(\\s*t\\s*\\)|\\(兆\\)|（兆）)"
+    p_k <- "(?i)(\\bin thousands\\b|\\bin 000s\\b|'000s|'000|\\$k\\b|\\$ k\\b|\\(\\s*k\\s*\\)|\\(\u5343\\)|\uff08\u5343\uff09)"
+    p_m <- "(?i)(\\bin millions\\b|\\bin mln\\b|\\bin millionen\\b|\\ben millions\\b|\\$m\\b|\\$ m\\b|\\(\\s*m\\s*\\)|\\(\u767e\u4e07\\)|\uff08\u767e\u4e07\uff09)"
+    p_b <- "(?i)(\\bin billions\\b|\\bin bln\\b|\\bin bn\\b|\\$b\\b|\\$ b\\b|\\(\\s*b\\s*\\)|\\(\u5341\u4ebf\\)|\uff08\u5341\u4ebf\uff09)"
+    p_t <- "(?i)(\\bin trillions\\b|\\$t\\b|\\$ t\\b|\\(\\s*t\\s*\\)|\\(\u5146\\)|\uff08\u5146\uff09)"
     
     for (i in seq_along(cnames)) {
         col_name <- cnames[i]
@@ -67,7 +67,7 @@ normalize_units <- function(data, strip_units = TRUE) {
             
             if (strip_units) {
                 new_name <- stringr::str_remove(col_name, matched_pattern)
-                new_name <- stringr::str_replace(new_name, "\\(\\s*\\)|（\\s*）", "") 
+                new_name <- stringr::str_replace(new_name, "\\(\\s*\\)|\uff08\\s*\uff09", "")
                 new_name <- stringr::str_trim(new_name)
                 cnames[i] <- new_name
             }
