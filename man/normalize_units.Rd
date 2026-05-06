@@ -22,11 +22,14 @@ detected multiplier (1,000, 1,000,000, etc.) and optionally strips the unit
 declaration from the column name.
 }
 \examples{
-\dontrun{
-df <- data.frame(`Revenue ($M)` = c(1.5, 2.0), `Cost (in thousands)` = c(500, 600), check.names = FALSE)
-norm_df <- normalize_units(df)
-# Revenue becomes 1500000, 2000000
-# Cost becomes 500000, 600000
-}
+# Scale columns declared in millions and thousands
+df <- data.frame(
+  `Revenue ($M)` = c(1.5, 2.0),
+  `Cost (in thousands)` = c(500, 600),
+  check.names = FALSE
+)
+result <- normalize_units(df)
+result$Revenue  # c(1500000, 2000000)
+result$Cost     # c(500000, 600000)
 
 }

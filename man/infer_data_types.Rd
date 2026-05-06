@@ -27,10 +27,10 @@ them with \code{NA}, and then coerces the column to \code{numeric} or \code{Date
 percentage of the remaining values match those types.
 }
 \examples{
-\dontrun{
-df <- data.frame(val = c("1.5", "-", "2.0", "N/A"))
-df_inferred <- infer_data_types(df)
-# df_inferred$val is now a numeric vector: c(1.5, NA, 2.0, NA)
-}
+# Clean financial placeholders and coerce to numeric
+df <- data.frame(val = c("1.5", "-", "2.0", "N/A"), stringsAsFactors = FALSE)
+df_clean <- infer_data_types(df)
+df_clean$val  # numeric: c(1.5, NA, 2.0, NA)
+is.numeric(df_clean$val)  # TRUE
 
 }
