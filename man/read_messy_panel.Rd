@@ -42,8 +42,21 @@ indentation hierarchies (parent-child relationships), amputates embedded subtota
 financial/scientific numbers.
 }
 \examples{
-\dontrun{
-# Basic usage
+# Toy example: create a small in-memory Excel file and parse it
+tmp <- tempfile(fileext = ".xlsx")
+df_raw <- data.frame(
+  Category = c("Revenue", "Cost", "Total"),
+  `2022` = c("1.2M", "800k", "2.0M"),
+  `2023` = c("1.5M", "900k", "2.4M"),
+  check.names = FALSE
+)
+writexl::write_xlsx(df_raw, tmp)
+result <- read_messy_panel(tmp, auto_pivot = TRUE)
+head(result)
+unlink(tmp)
+
+\donttest{
+# Full file example (not run during automated checks)
 df <- read_messy_panel("data_raw/financial_report.xlsx")
 
 # Return data along with the algorithmic audit log

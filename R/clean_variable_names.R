@@ -10,13 +10,24 @@
 #' @return A `data.frame` with the same data but standardized column names.
 #' 
 #' @examples
-#' \dontrun{
-#' df <- data.frame(`Total Revenue ($)` = 1, `44197` = 2, `PERMNO` = 3, check.names = FALSE)
+#' # Toy example: standardize column names in a data frame
+#' df <- data.frame(
+#'   `Total Revenue ($)` = 1,
+#'   `PERMNO` = 3,
+#'   `My Custom Column!` = 4,
+#'   check.names = FALSE
+#' )
 #' clean_df <- clean_variable_names(df)
 #' colnames(clean_df)
-#' # Returns: c("total_revenue", "2021-01-01", "id")
+#' # Returns: c("revenue", "id", "my_custom_column")
+#'
+#' \donttest{
+#' # Excel serial dates are also handled
+#' df2 <- data.frame(`44197` = 2, check.names = FALSE)
+#' colnames(clean_variable_names(df2))
+#' # Returns: "2021-01-01"
 #' }
-#' 
+#'
 #' @export
 #' @importFrom stringr str_remove_all str_trim str_to_lower
 clean_variable_names <- function(data) {

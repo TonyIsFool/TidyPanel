@@ -28,19 +28,43 @@ knitr::opts_chunk$set(
 
 ## Basic Usage
 
-To parse an Excel file, simply use the `read_messy_panel()` function.
+The core function is `read_messy_panel()`. The following example creates a minimal "messy" Excel file in a temporary location and demonstrates the parsing pipeline.
 
-```{r setup}
-# Load the package (simulated for vignette)
-# library(TidyPanel)
+```{r basic_example}
+library(TidyPanel)
+
+# Create a minimal example with financial multiplier notation
+tmp <- tempfile(fileext = ".xlsx")
+df_raw <- data.frame(
+  Category  = c("Revenue", "Cost"),
+  `FY2022`  = c("1.5M", "800k"),
+  `FY2023`  = c("2.0M", "950k"),
+  check.names = FALSE
+)
+writexl::write_xlsx(df_raw, tmp)
+
+# Parse and auto-pivot the wide table to long format
+result <- read_messy_panel(tmp, auto_pivot = TRUE)
+head(result)
+
+unlink(tmp)
 ```
 
-```{r basic_example, eval=FALSE}
-# Extract the first valid data block from the spreadsheet
-df <- read_messy_panel("data_raw/financial_report.xlsx")
+## Cleaning Variable Names
 
-# View the clean data
-head(df)
+By default, TidyPanel standardizes variable names using the underlying `clean_variable_names()` engine. This function converts text to snake_case, removes special currency/percentage symbols, and maps common synonyms (like `gvkey` or `permno`) to standard terms (`id`).
+
+```{r vars_example}
+# Demonstrate variable name standardization
+df_messy <- data.frame(
+  `GVKEY`            = c("001", "002"),
+  `Total Revenue ($)` = c(100, 200),
+  `My Custom Col!`   = c("A", "B"),
+  check.names = FALSE
+)
+
+df_clean <- clean_variable_names(df_messy)
+colnames(df_clean)
 ```
 
 ## Advanced Features: Hierarchies and Audit Logs
@@ -49,34 +73,31 @@ One of TidyPanel's unique features is its ability to understand structure. Finan
 
 Additionally, data parsing should never be a "black box". TidyPanel allows you to generate an **Audit Log** that explicitly records every transformation applied to your data.
 
-```{r audit_example, eval=FALSE}
-# Run the parser with auditing turned on
-result <- read_messy_panel("data_raw/type_hierarchical_data.xlsx", return_audit = TRUE)
+```{r audit_example}
+# Create a table with a mid-table subtotal row (to be amputated)
+tmp2 <- tempfile(fileext = ".xlsx")
+df_with_subtotal <- data.frame(
+  Item    = c("Product A", "Product B", "Total", "Product C"),
+  Revenue = c("100", "200", "300", "150")
+)
+writexl::write_xlsx(df_with_subtotal, tmp2)
 
-# The cleaned dataframe is in result$data
-clean_df <- result$data
-head(clean_df)
+# Parse with audit log enabled
+result <- read_messy_panel(tmp2, return_audit = TRUE)
 
-# The audit log is in result$audit
+# View the cleaned data (Total row should be amputated)
+head(result$data)
+
+# View what the engine did
 print(result$audit)
+
+unlink(tmp2)
 ```
 
 **Example Audit Log Output:**
 
 | Operation | Count |
 | :--- | :--- |
-| Decoy Rows Bypassed | 5 |
-| Indentation Hierarchy Extracted | 3 |
-| Ghost Bottom Rows Dropped | 4 |
+| Mid-Table Subtotals Amputated | 1 |
 
-This table guarantees 100% transparency. You can save this log alongside your processed data to maintain a strict audit trail of how the messy raw data was mathematically restructured.
-
-## Cleaning Variable Names
-
-By default, TidyPanel standardizes variable names using the underlying `clean_variable_names()` engine. This function converts text to snake_case, removes special currency/percentage symbols, and maps common synonyms (like `gvkey` or `permno`) to standard terms (`id`).
-
-```{r vars, eval=FALSE}
-# Example of variables being cleaned automatically
-df <- read_messy_panel("data_raw/messy_headers.xlsx", clean_vars = TRUE)
-colnames(df)
-```
+This table guarantees 100% transparency. You can save this log alongside your processed data to maintain a strict audit trail of how the messy raw data was restructured.
