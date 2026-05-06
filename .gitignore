@@ -7,3 +7,7 @@
 data_raw/
 data_clean/
 ..Rcheck
+
+*.Rcheck
+customers_dna.html
+*.html
