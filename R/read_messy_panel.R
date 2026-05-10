@@ -91,7 +91,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
     clean_x <- stringr::str_replace(clean_x, "^\\s*\\((.*)\\)\\s*$", "-\\1")
     clean_x <- stringr::str_replace(clean_x, "^-\\s+", "-")
     clean_x <- stringr::str_replace(clean_x, "^\\s*([0-9.,\\s]+?)\\s*-$", "-\\1")
-    clean_x <- stringr::str_remove_all(clean_x, "[\\$\u20ac\u00a3\u00a5%\u4e07\u4ebf\u5143\u5343]")
+    clean_x <- stringr::str_remove_all(clean_x, "[\\$\\u20ac\\u00a3\\u00a5%\\u5143]")
     
     clean_x <- stringr::str_replace_all(clean_x, "(?<=\\d)[\\s\\u00A0'](?=\\d)", "")
     has_euro_decimal <- grepl(",[0-9]{1,2}[^0-9]*$", clean_x)
@@ -204,22 +204,20 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       is_noise_header_row <- function(row_vals) {
           non_empty <- row_vals[!is.na(row_vals) & stringr::str_trim(row_vals) != ""]
           if (length(non_empty) == 0) return(FALSE)
-          # A row is "noise" if every non-empty cell:
-          #   (a) contains only letters (no spaces, digits, underscores, or punctuation), AND
-          #   (b) looks random: either all-uppercase with 5+ chars, or a mixed-case string
-          #       whose character bigram entropy suggests it has no real word structure.
+          
+          # NEW: If any cell contains a URL, email, or long prose sentence -> metadata row
+          has_url_or_email <- any(vapply(non_empty, function(x) {
+              grepl("https?://|www\\.|@[a-zA-Z0-9]+\\.[a-zA-Z]{2,}|[A-Za-z]{10,}\\s[A-Za-z]{6,}\\s[A-Za-z]{4,}", x)
+          }, logical(1)))
+          if (has_url_or_email) return(TRUE)
+          
           looks_random <- vapply(non_empty, function(x) {
               x <- stringr::str_trim(x)
-              # Must be letters-only (no spaces/digits/special chars)
               if (!grepl("^[A-Za-z]+$", x)) return(FALSE)
-              # Short common words (<=4 chars) are NOT noise (e.g. "ID", "Age")
               if (nchar(x) <= 4) return(FALSE)
-              # If it looks like a known word prefix or is title-cased, not noise
               if (grepl("^[A-Z][a-z]", x)) return(FALSE)
-              # Otherwise treat as noise (all-caps random string like "WEDEWADAW")
               TRUE
           }, logical(1))
-          # Only flag as noise if ALL non-empty cells in this row are random-looking
           all(looks_random)
       }
 
@@ -261,6 +259,25 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
                                 headers)
           }
           headers <- ifelse(headers == "", NA, headers)
+          
+          # Guard: if any header name exceeds 80 chars, it contains stitched metadata.
+          # Recover by using only the LAST segment (the actual column label) after splitting on "_".
+          max_col_name_len <- 80
+          headers <- vapply(headers, function(h) {
+              if (!is.na(h) && nchar(h) > max_col_name_len) {
+                  parts <- strsplit(h, "_")[[1]]
+                  # Walk back from end to find a segment that is a plausible column name (<= 50 chars)
+                  for (k in rev(seq_along(parts))) {
+                      candidate <- paste(parts[k:length(parts)], collapse = "_")
+                      if (nchar(candidate) <= max_col_name_len && nchar(stringr::str_trim(candidate)) > 0) {
+                          return(candidate)
+                      }
+                  }
+                  # Last resort: truncate to 80 chars
+                  return(substr(h, nchar(h) - max_col_name_len + 1, nchar(h)))
+              }
+              h
+          }, character(1))
       } else {
           headers <- raw_mat[header_row_index, ]
       }
@@ -532,7 +549,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         clean_x <- stringr::str_replace(clean_x, "^\\s*([0-9.,\\s]+?)\\s*-$", "-\\1")
         is_pct <- grepl("%\\s*$", clean_x) & !is.na(clean_x)
         
-        clean_x <- stringr::str_remove_all(clean_x, "[\\$\u20ac\u00a3\u00a5%\u4e07\u4ebf\u5143\u5343]")
+        clean_x <- stringr::str_remove_all(clean_x, "[\\$\\u20ac\\u00a3\\u00a5%\\u5143]")
         clean_x <- stringr::str_trim(clean_x)
         
         clean_x <- stringr::str_replace_all(clean_x, "(?<=\\d)[\\s\\u00A0'](?=\\d)", "")
@@ -544,17 +561,21 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         
         # Phase 11: Semantic Multiplier Engine
         multiplier <- rep(1, length(clean_x))
-        k_idx <- grepl("(?i)[-0-9.]+\\s*k$", clean_x) & !is.na(clean_x)
+        k_idx <- grepl("(?i)[-0-9.]+\\s*(k|\u5343)$", clean_x) & !is.na(clean_x)
+        wan_idx <- grepl("(?i)[-0-9.]+\\s*(w|wan|\u4e07)$", clean_x) & !is.na(clean_x)
         m_idx <- grepl("(?i)[-0-9.]+\\s*(m|mil|million)$", clean_x) & !is.na(clean_x)
+        yi_idx <- grepl("(?i)[-0-9.]+\\s*(y|yi|\u4ebf)$", clean_x) & !is.na(clean_x)
         b_idx <- grepl("(?i)[-0-9.]+\\s*(b|bn|billion)$", clean_x) & !is.na(clean_x)
         t_idx <- grepl("(?i)[-0-9.]+\\s*(t|tn|trillion)$", clean_x) & !is.na(clean_x)
         
         multiplier[k_idx] <- 1000
+        multiplier[wan_idx] <- 10000
         multiplier[m_idx] <- 1000000
+        multiplier[yi_idx] <- 100000000
         multiplier[b_idx] <- 1000000000
         multiplier[t_idx] <- 1000000000000
         
-        clean_x <- stringr::str_replace(clean_x, "(?i)\\s*(k|m|mil|million|b|bn|billion|t|tn|trillion)$", "")
+        clean_x <- stringr::str_replace(clean_x, "(?i)\\s*(k|\u5343|w|wan|\u4e07|m|mil|million|y|yi|\u4ebf|b|bn|billion|t|tn|trillion)$", "")
         
         clean_x <- stringr::str_replace(clean_x, "\\s*\\*+\\s*$", "")
         clean_x <- stringr::str_replace(clean_x, "\\s*[\\(\\[].*?[\\)\\]]\\s*$", "")
@@ -583,7 +604,41 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         df <- clean_variable_names(df)
       }
       
-      # Phase 14: Auto-Pivot Engine (Wide to Long)
+      # Phase 15: Common Prefix Stripping
+      # If >=75% of columns share a long common prefix (>=15 chars), strip it.
+      # This handles WB-style repeated dataset labels in headers.
+      cnames_for_prefix <- colnames(df)
+      if (length(cnames_for_prefix) >= 3) {
+          # Find longest common prefix among all column names
+          find_common_prefix <- function(strs) {
+              if (length(strs) == 0) return("")
+              ref <- strsplit(strs[1], "")[[1]]
+              for (s in strs[-1]) {
+                  chars <- strsplit(s, "")[[1]]
+                  common_len <- min(length(ref), length(chars))
+                  mismatch <- which(ref[1:common_len] != chars[1:common_len])
+                  if (length(mismatch) > 0) {
+                      ref <- ref[1:(mismatch[1] - 1)]
+                  } else {
+                      ref <- ref[1:common_len]
+                  }
+              }
+              paste(ref, collapse = "")
+          }
+          common_pfx <- find_common_prefix(cnames_for_prefix)
+          # Only strip if prefix is meaningfully long (>=15 chars) and ends on a word boundary
+          if (nchar(common_pfx) >= 15) {
+              common_pfx <- sub("_+$", "", common_pfx)  # trim trailing underscores
+              common_pfx <- paste0(common_pfx, "_")     # re-add one separator
+              stripped <- sub(paste0("^", common_pfx), "", cnames_for_prefix)
+              # Only apply if all stripped names are non-empty
+              if (all(nchar(stripped) > 0)) {
+                  colnames(df) <- stripped
+                  audit_log[["Common Column Prefix Stripped"]] <- common_pfx
+              }
+          }
+      }
+      
       if (auto_pivot && nrow(df) > 0) {
           cnames <- colnames(df)
           temporal_pattern <- "^(19|20)[0-9]{2}(_q[1-4]|_h[1-2]|_[0-1]?[0-9]|_[a-z]{3})?$|^(q[1-4]|h[1-2]|fy[0-9]+)$|^[a-z]{3}_([0-9]{2}|(19|20)[0-9]{2})$"
