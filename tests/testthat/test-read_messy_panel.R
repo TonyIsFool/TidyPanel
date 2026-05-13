@@ -177,3 +177,45 @@ test_that("Engine supports Chinese financial multipliers", {
     expect_equal(as.numeric(res$value), c(15000, 230000000, 50000, 1000000000, 8000, 4000))
     unlink(tmp)
 })
+
+test_that("extract_all_blocks = TRUE returns multiple disjoint panels", {
+    tmp <- tempfile(fileext = ".xlsx")
+    df_multi <- data.frame(
+        VarA = c("First Panel", "A", "B", rep(NA, 6), "Second Panel", "C", "D"),
+        VarB = c("ValueA", "10", "20", rep(NA, 6), "ValueB", "30", "40"),
+        stringsAsFactors = FALSE
+    )
+    writexl::write_xlsx(df_multi, tmp)
+    
+    res_list <- read_messy_panel(tmp, extract_all_blocks = TRUE)
+    expect_type(res_list, "list")
+    expect_equal(length(res_list), 2)
+    
+    expect_equal(nrow(res_list$Block_1), 2)
+    expect_equal(nrow(res_list$Block_2), 2)
+    
+    # Check default behavior returns only one block
+    res_single <- read_messy_panel(tmp, extract_all_blocks = FALSE)
+    expect_s3_class(res_single, "data.frame")
+    expect_equal(nrow(res_single), 2)
+    
+    unlink(tmp)
+})
+
+test_that("reads external New.xlsx successfully", {
+    # Test reading an external file specifically placed in testdata
+    file_path <- "testdata/New.xlsx"
+    if (file.exists(file_path)) {
+        res <- read_messy_panel(file_path, extract_all_blocks = TRUE)
+        expect_type(res, "list")
+        expect_true("Block_1" %in% names(res))
+        
+        df <- res$Block_1
+        expect_equal(colnames(df), c("id", "product", "price"))
+        expect_equal(nrow(df), 3)
+        expect_equal(df$product[1], "Apple")
+        expect_equal(df$price[3], 3000)
+    } else {
+        skip("External test data New.xlsx not found")
+    }
+})

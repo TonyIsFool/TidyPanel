@@ -12,6 +12,7 @@
 #' @param na_strings Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons.
 #' @param clean_vars Logical. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
 #' @param auto_pivot Logical. If `TRUE`, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (`time_period`, `value`).
+#' @param extract_all_blocks Logical. If `TRUE`, extracts all disjoint data tables on a sheet as a list of data frames. Default is `FALSE` (extracts only the largest block).
 #' @param return_audit Logical. If `TRUE`, returns a list containing `$data` (the cleaned data frame) and `$audit` (a detailed log of all algorithmic modifications made).
 #'
 #' @return If `return_audit = FALSE`, a cleaned and standardized `data.frame`. 
@@ -36,18 +37,28 @@
 #' @export
 #' @importFrom readxl read_excel excel_sheets
 #' @importFrom stringr str_trim str_replace str_remove_all str_squish str_extract
-read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "#N/A", "NULL", "S", "D", "ND", "N/A", "*", "**", "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR", "--", "---", "n.a.", "N.A.", "n/a", "Not Applicable"), clean_vars = TRUE, auto_pivot = FALSE, return_audit = FALSE) {
+read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "#N/A", "NULL", "S", "D", "ND", "N/A", "*", "**", "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR", "--", "---", "n.a.", "N.A.", "n/a", "Not Applicable"), clean_vars = TRUE, auto_pivot = FALSE, return_audit = FALSE, extract_all_blocks = FALSE) {
   
   audit_log <- list()
   
+  is_df <- is.data.frame(file_path)
+  is_csv <- FALSE
+  if (!is_df && is.character(file_path)) {
+      is_csv <- tolower(tools::file_ext(file_path)) %in% c("csv", "tsv", "txt")
+  }
+
   if (is.character(sheet) && length(sheet) == 1 && toupper(sheet) == "ALL") {
-      sheets <- readxl::excel_sheets(file_path)
+      if (is_df || is_csv) {
+          sheets <- c("Data1")
+      } else {
+          sheets <- readxl::excel_sheets(file_path)
+      }
       all_data <- list()
       all_audits <- list()
       
       for (s in sheets) {
           res <- tryCatch({
-              read_messy_panel(file_path, sheet = s, na_strings = na_strings, clean_vars = clean_vars, auto_pivot = auto_pivot, return_audit = TRUE)
+              read_messy_panel(file_path, sheet = s, na_strings = na_strings, clean_vars = clean_vars, auto_pivot = auto_pivot, return_audit = TRUE, extract_all_blocks = extract_all_blocks)
           }, error = function(e) list(error = e$message))
           
           if ("data" %in% names(res)) {
@@ -67,7 +78,12 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
           stop("Could not parse any sheet in the workbook.")
       }
       
-      master_df <- dplyr::bind_rows(all_data)
+      if (extract_all_blocks) {
+          master_df <- unlist(all_data, recursive = FALSE)
+          names(master_df) <- make.unique(names(master_df))
+      } else {
+          master_df <- dplyr::bind_rows(all_data)
+      }
       
       if (return_audit) {
           return(list(success = TRUE, data = master_df, audit = all_audits))
@@ -76,8 +92,12 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       }
   }
   
-  sheets <- readxl::excel_sheets(file_path)
-  sheets_to_try <- if (!is.null(sheet)) sheet else sheets
+  if (is_df || is_csv) {
+      sheets <- c("Data1")
+  } else {
+      sheets <- readxl::excel_sheets(file_path)
+  }
+  sheets_to_try <- if (!is.null(sheet) && !is_df && !is_csv) sheet else sheets
   
   is_numeric_like <- function(x) {
     if (is.na(x) || x %in% na_strings) return(TRUE) 
@@ -112,10 +132,69 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
   
   for (s in sheets_to_try) {
     res <- tryCatch({
-      raw_data <- suppressMessages(readxl::read_excel(file_path, sheet = s, col_names = FALSE, .name_repair = "minimal", trim_ws = FALSE))
+      if (is_df) {
+          raw_data <- as.data.frame(file_path, stringsAsFactors = FALSE)
+          if (!all(grepl("^(V|X|Col)[0-9A-Za-z]*$|^\\.\\.\\.[0-9]+$", colnames(raw_data)))) {
+              raw_data <- rbind(colnames(raw_data), raw_data)
+          }
+          colnames(raw_data) <- NULL
+      } else if (is_csv) {
+          ext <- tolower(tools::file_ext(file_path))
+          sep <- if (ext == "tsv") "\t" else ","
+          raw_data <- suppressMessages(read.csv(file_path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE))
+      } else {
+          raw_data <- suppressMessages(readxl::read_excel(file_path, sheet = s, col_names = FALSE, .name_repair = "minimal", trim_ws = FALSE))
+      }
       if (nrow(raw_data) == 0) stop("Empty sheet")
       
       raw_mat <- as.matrix(raw_data)
+      
+      if (extract_all_blocks) {
+          empty_cols <- apply(raw_mat, 2, function(col) {
+              valid <- col[!is.na(col) & stringr::str_trim(col) != ""]
+              length(valid) == 0
+          })
+          if (any(empty_cols)) {
+              col_indices <- seq_len(ncol(raw_mat))
+              non_empty_indices <- col_indices[!empty_cols]
+              if (length(non_empty_indices) > 0) {
+                  gaps <- diff(non_empty_indices)
+                  split_points <- which(gaps > 1)
+                  if (length(split_points) > 0) {
+                      h_blocks <- list()
+                      start_idx <- 1
+                      for (sp in split_points) {
+                          h_blocks <- append(h_blocks, list(raw_mat[, non_empty_indices[start_idx:sp], drop = FALSE]))
+                          start_idx <- sp + 1
+                      }
+                      h_blocks <- append(h_blocks, list(raw_mat[, non_empty_indices[start_idx:length(non_empty_indices)], drop = FALSE]))
+                      
+                      all_h_data <- list()
+                      all_h_audits <- list()
+                      for (hb in h_blocks) {
+                          hb_df <- as.data.frame(hb, stringsAsFactors = FALSE)
+                          hb_res <- tryCatch({
+                              read_messy_panel(hb_df, sheet = s, na_strings = na_strings, clean_vars = clean_vars, auto_pivot = auto_pivot, return_audit = TRUE, extract_all_blocks = TRUE)
+                          }, error = function(e) list(error = e$message))
+                          if ("data" %in% names(hb_res)) {
+                              if (is.data.frame(hb_res$data)) {
+                                  all_h_data <- append(all_h_data, list(hb_res$data))
+                                  all_h_audits <- append(all_h_audits, list(hb_res$audit))
+                              } else {
+                                  all_h_data <- append(all_h_data, hb_res$data)
+                                  all_h_audits <- append(all_h_audits, hb_res$audit)
+                              }
+                          }
+                      }
+                      if (length(all_h_data) > 0) {
+                          names(all_h_data) <- paste0("HBlock_", seq_along(all_h_data))
+                          names(all_h_audits) <- paste0("HBlock_", seq_along(all_h_audits))
+                          return(list(success = TRUE, data = all_h_data, audit = all_h_audits))
+                      }
+                  }
+              }
+          }
+      }
       
       num_counts <- apply(raw_mat, 1, function(row) {
         sum(vapply(row, is_numeric_like, logical(1)) & !is.na(row) & row != "")
@@ -143,14 +222,43 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         blocks <- append(blocks, list(true_runs_indices[start_idx:length(true_runs_indices)]))
       }
       
-      block_lengths <- vapply(blocks, length, integer(1))
-      main_block <- blocks[[which.max(block_lengths)]]
+      if (!extract_all_blocks) {
+        block_lengths <- vapply(blocks, length, integer(1))
+        blocks_to_process <- list(blocks[[which.max(block_lengths)]])
+      } else {
+        blocks_to_process <- blocks
+      }
       
-      start_data_row <- min(main_block)
-      end_data_row <- max(main_block)
+      block_results <- lapply(blocks_to_process, function(current_block) {
+        withCallingHandlers({
+        audit_log <- list()
+        start_data_row <- min(current_block)
+        end_data_row <- max(current_block)
       
       main_block_counts <- num_counts[start_data_row:end_data_row]
       mode_count <- as.numeric(names(sort(table(main_block_counts), decreasing = TRUE)[1]))
+      
+      # We know header must be above true_start. We walk up looking for a header boundary.
+      true_start <- start_data_row
+      max_walk_up <- 2
+      walked <- 0
+      while (true_start > 1 && walked < max_walk_up) {
+          non_empty <- sum(!is.na(raw_mat[true_start - 1, ]) & stringr::str_trim(raw_mat[true_start - 1, ]) != "")
+          looks_like_header <- FALSE
+          if (non_empty > 0) {
+              looks_character <- stringr::str_trim(raw_mat[true_start - 1, !is.na(raw_mat[true_start - 1, ])]) != "" &
+                                 !vapply(raw_mat[true_start - 1, !is.na(raw_mat[true_start - 1, ])], is_numeric_like, logical(1))
+              if (sum(looks_character) >= (length(looks_character) * 0.5)) {
+                  looks_like_header <- TRUE
+              }
+          }
+          if (non_empty > 0 && num_counts[true_start - 1] == 0 && !looks_like_header) {
+              true_start <- true_start - 1
+              walked <- walked + 1
+          } else {
+              break
+          }
+      }
       
       density_threshold <- max(1, floor(mode_count * 0.2))
       
@@ -195,6 +303,34 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       header_row_index <- max(1, true_start - 1)
       audit_log[["Decoy Rows Bypassed"]] <- header_row_index - 1
       
+      extracted_metadata <- list()
+      if (header_row_index > 1) {
+          decoy_mat <- raw_mat[1:(header_row_index - 1), , drop = FALSE]
+          for (r in seq_len(nrow(decoy_mat))) {
+              row_vals <- decoy_mat[r, ]
+              valid_vals <- row_vals[!is.na(row_vals) & stringr::str_trim(row_vals) != ""]
+              
+              if (length(valid_vals) == 1) {
+                  val <- valid_vals[1]
+                  if (grepl(":", val)) {
+                      parts <- strsplit(val, ":")[[1]]
+                      if (length(parts) == 2) {
+                          key <- stringr::str_trim(parts[1])
+                          val <- stringr::str_trim(parts[2])
+                          extracted_metadata[[key]] <- val
+                      }
+                  }
+              } else if (length(valid_vals) == 2) {
+                  key <- stringr::str_trim(valid_vals[1])
+                  val <- stringr::str_trim(valid_vals[2])
+                  if (nchar(key) < 50) {
+                      key <- stringr::str_replace(key, ":\\s*$", "")
+                      extracted_metadata[[key]] <- val
+                  }
+              }
+          }
+      }
+      
       if (header_row_index == true_start) {
           true_start <- true_start + 1
       }
@@ -221,12 +357,22 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
           all(looks_random)
       }
 
+      # Determine how far back to search for headers for this block
+      search_start <- header_row_index
+      while (search_start > 1) {
+          non_empty <- sum(!is.na(raw_mat[search_start - 1, ]) & stringr::str_trim(raw_mat[search_start - 1, ]) != "")
+          if (non_empty > 0) {
+              search_start <- search_start - 1
+          } else {
+              break # Stop at empty row
+          }
+      }
+      
       header_rows_list <- list()
-      for (r in 1:header_row_index) {
+      for (r in search_start:header_row_index) {
           row_vals <- raw_mat[r, ]
           non_empty_count <- sum(!is.na(row_vals) & stringr::str_trim(row_vals) != "")
           if (non_empty_count > 1 || r == header_row_index) {
-              # Skip rows that are pure noise garbage
               if (r != header_row_index && is_noise_header_row(row_vals)) {
                   audit_log[["Noise Header Rows Discarded"]] <-
                       c(audit_log[["Noise Header Rows Discarded"]], r)
@@ -255,16 +401,17 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
               h_row <- header_rows_list[[i]]
               valid_mask <- !is.na(h_row) & stringr::str_trim(h_row) != ""
               headers <- ifelse(valid_mask,
-                                ifelse(headers == "", h_row, paste0(headers, "_", h_row)),
+                                ifelse(is.na(headers) | headers == "", h_row, paste0(headers, "_", h_row)),
                                 headers)
           }
-          headers <- ifelse(headers == "", NA, headers)
+          headers <- ifelse(is.na(headers) | headers == "", NA, headers)
           
           # Guard: if any header name exceeds 80 chars, it contains stitched metadata.
           # Recover by using only the LAST segment (the actual column label) after splitting on "_".
           max_col_name_len <- 80
           headers <- vapply(headers, function(h) {
-              if (!is.na(h) && nchar(h) > max_col_name_len) {
+              if (is.na(h)) return(NA_character_)
+              if (nchar(h) > max_col_name_len) {
                   parts <- strsplit(h, "_")[[1]]
                   # Walk back from end to find a segment that is a plausible column name (<= 50 chars)
                   for (k in rev(seq_along(parts))) {
@@ -276,7 +423,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
                   # Last resort: truncate to 80 chars
                   return(substr(h, nchar(h) - max_col_name_len + 1, nchar(h)))
               }
-              h
+              as.character(h)
           }, character(1))
       } else {
           headers <- raw_mat[header_row_index, ]
@@ -662,21 +809,50 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
           }
       }
       
+      if (length(extracted_metadata) > 0) {
+          attr(df, "metadata") <- extracted_metadata
+          audit_log[["Metadata Keys Extracted"]] <- length(extracted_metadata)
+      }
+      
       list(success = TRUE, data = df, audit = audit_log)
+      }, error = function(e) {
+          print(sys.calls())
+          stop(e)
+      }) # end withCallingHandlers
+      }) # End lapply over blocks
+      
+      if (!extract_all_blocks) {
+          res_final <- block_results[[1]]
+      } else {
+          data_list <- lapply(block_results, `[[`, "data")
+          audit_list <- lapply(block_results, `[[`, "audit")
+          names(data_list) <- paste0("Block_", seq_along(data_list))
+          names(audit_list) <- paste0("Block_", seq_along(audit_list))
+          res_final <- list(success = TRUE, data = data_list, audit = audit_list)
+      }
+      res_final
     }, error = function(e) {
       list(success = FALSE, error = e$message)
     })
     
     if (res$success) {
       if (return_audit) {
-          audit_df <- data.frame(
-              Operation = names(res$audit),
-              Count = as.character(unlist(res$audit, use.names = FALSE)),
-              stringsAsFactors = FALSE
-          )
-          audit_df <- audit_df[audit_df$Count != "0", , drop = FALSE]
-          rownames(audit_df) <- NULL
-          return(list(data = res$data, audit = audit_df))
+          if (extract_all_blocks) {
+              audit_dfs <- lapply(res$audit, function(aud) {
+                  df <- data.frame(Operation = names(aud), Count = as.character(unlist(aud, use.names = FALSE)), stringsAsFactors = FALSE)
+                  df[df$Count != "0", , drop = FALSE]
+              })
+              return(list(data = res$data, audit = audit_dfs))
+          } else {
+              audit_df <- data.frame(
+                  Operation = names(res$audit),
+                  Count = as.character(unlist(res$audit, use.names = FALSE)),
+                  stringsAsFactors = FALSE
+              )
+              audit_df <- audit_df[audit_df$Count != "0", , drop = FALSE]
+              rownames(audit_df) <- NULL
+              return(list(data = res$data, audit = audit_df))
+          }
       }
       return(res$data)
     } else {

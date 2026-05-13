@@ -20,6 +20,7 @@
 #'     \item{`has_temporal_cols`}{Logical. Whether wide-format temporal columns (years, quarters) are detected.}
 #'     \item{`n_aggregation_rows`}{Number of suspected Total/Sum aggregation rows found.}
 #'     \item{`n_phantom_cols`}{Number of fully-empty ghost columns.}
+#'     \item{`n_data_blocks`}{Total number of disjoint data panels found in the sheet.}
 #'     \item{`recommended_call`}{A character string with a suggested `read_messy_panel()` call.}
 #'   }
 #'
@@ -41,13 +42,31 @@
 #' @importFrom readxl read_excel excel_sheets
 #' @importFrom stringr str_trim str_detect
 detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
-    if (!file.exists(path)) stop("File not found: ", path)
+    is_df <- is.data.frame(path)
+    is_csv <- FALSE
+    if (!is_df && is.character(path)) {
+        if (!file.exists(path)) stop("File not found: ", path)
+        is_csv <- tolower(tools::file_ext(path)) %in% c("csv", "tsv", "txt")
+    }
 
-    # Read raw without any cleaning, suppress col_types warning
-    raw <- suppressMessages(suppressWarnings(
-        readxl::read_excel(path, sheet = sheet, col_names = FALSE,
-                           col_types = "text", .name_repair = "minimal")
-    ))
+    if (is_df) {
+        raw <- as.data.frame(path, stringsAsFactors = FALSE)
+        if (!all(grepl("^(V|X|Col)[0-9A-Za-z]*$|^\\.\\.\\.[0-9]+$", colnames(raw)))) {
+            raw <- rbind(colnames(raw), raw)
+        }
+        colnames(raw) <- NULL
+    } else if (is_csv) {
+        ext <- tolower(tools::file_ext(path))
+        sep <- if (ext == "tsv") "\t" else ","
+        raw <- suppressMessages(suppressWarnings(
+            read.csv(path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE)
+        ))
+    } else {
+        raw <- suppressMessages(suppressWarnings(
+            readxl::read_excel(path, sheet = sheet, col_names = FALSE,
+                               col_types = "text", .name_repair = "minimal")
+        ))
+    }
 
     n_rows <- nrow(raw)
     n_cols <- ncol(raw)
@@ -133,15 +152,43 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
     col_density <- apply(mat, 2, function(col) sum(!is.na(col) & stringr::str_trim(col) != ""))
     n_phantom_cols <- sum(col_density == 0)
 
+    # ---- 6.5 Detect Number of Blocks ----
+    # Minimal logic mirroring read_messy_panel gap analysis
+    is_numeric_like <- function(x) {
+        if (is.na(x) || stringr::str_trim(x) == "") return(TRUE)
+        !is.na(suppressWarnings(as.numeric(stringr::str_remove_all(x, "[,%$]"))))
+    }
+    num_counts <- apply(mat, 1, function(row) {
+        sum(vapply(row, is_numeric_like, logical(1)) & !is.na(row) & row != "")
+    })
+    is_data_row <- num_counts >= 1
+    true_runs_indices <- which(is_data_row == TRUE)
+    n_data_blocks <- 1
+    if (length(true_runs_indices) > 0) {
+        gaps <- diff(true_runs_indices)
+        n_data_blocks <- sum(gaps > 5) + 1
+    }
+
     # ---- 7. Multi-sheet detection ----
-    all_sheets <- suppressMessages(readxl::excel_sheets(path))
-    n_sheets <- length(all_sheets)
+    if (is_df || is_csv) {
+        n_sheets <- 1
+    } else {
+        all_sheets <- suppressMessages(readxl::excel_sheets(path))
+        n_sheets <- length(all_sheets)
+    }
 
     # ---- 8. Build recommended call ----
     rec_parts <- c("read_messy_panel(")
-    rec_parts <- c(rec_parts, paste0('  path = "', basename(path), '",'))
+    if (is_df) {
+        rec_parts <- c(rec_parts, "  file_path = <data.frame>,")
+    } else {
+        rec_parts <- c(rec_parts, paste0('  file_path = "', basename(path), '",'))
+    }
     if (n_sheets > 1) {
         rec_parts <- c(rec_parts, '  sheet = 1,  # or "ALL" for all sheets')
+    }
+    if (n_data_blocks > 1) {
+        rec_parts <- c(rec_parts, "  extract_all_blocks = TRUE,")
     }
     if (has_temporal_cols) {
         rec_parts <- c(rec_parts, "  auto_pivot = TRUE,")
@@ -161,13 +208,18 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         has_temporal_cols    = has_temporal_cols,
         n_aggregation_rows   = n_aggregation_rows,
         n_phantom_cols       = n_phantom_cols,
+        n_data_blocks        = n_data_blocks,
         recommended_call     = recommended_call
     )
 
     # ---- 10. Verbose console output ----
     if (verbose) {
         cat("=== TidyPanel Structure Report ===\n")
-        cat(sprintf("  File         : %s\n", basename(path)))
+        if (is_df) {
+            cat("  Source       : data.frame\n")
+        } else {
+            cat(sprintf("  File         : %s\n", basename(path)))
+        }
         cat(sprintf("  Sheet        : %s  (%d total)\n", sheet, n_sheets))
         cat(sprintf("  Dimensions   : %d rows x %d cols\n", n_rows, n_cols))
         cat(sprintf("  Decoy rows   : %d  (estimated metadata at top)\n", estimated_decoy_rows))
@@ -175,6 +227,7 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         cat(sprintf("  Temporal cols: %s\n", if (has_temporal_cols) "YES - consider auto_pivot = TRUE" else "No"))
         cat(sprintf("  Agg. rows    : %d  (Total/Sum rows found)\n", n_aggregation_rows))
         cat(sprintf("  Ghost cols   : %d  (fully empty columns)\n", n_phantom_cols))
+        cat(sprintf("  Data blocks  : %d  %s\n", n_data_blocks, if (n_data_blocks > 1) "(Multiple disjoint panels found)" else ""))
         cat("\n-- Recommended call --\n")
         cat(recommended_call, "\n")
         cat("==================================\n")

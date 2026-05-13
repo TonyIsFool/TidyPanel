@@ -127,6 +127,11 @@ clean_variable_names <- function(data) {
   )
   
   for (i in seq_along(clean_names)) {
+    if (is.na(clean_names[i]) || clean_names[i] == "") {
+        clean_names[i] <- paste0("v", i)
+        next
+    }
+    
     matched <- FALSE
     
     # 1. Exact Match
