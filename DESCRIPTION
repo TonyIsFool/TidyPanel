@@ -1,7 +1,7 @@
 Package: TidyPanel
 Title: Universal Messy Panel Data Cleaner
 Version: 0.1.2
-Authors@R: person("TonyIsFool", email = "280893128+TonyIsFool@users.noreply.github.com", role = c("aut", "cre"))
+Authors@R: person("TonyIsFool", email = "xulunt123@gmail.com", role = c("aut", "cre"))
 Description: A robust toolkit designed to standardize and clean complex tabular data
     from commercial enterprise systems, healthcare records, logistics software, and HR
     databases. Now natively supports Excel files, flat-file databases (CSV/TSV), and raw 
