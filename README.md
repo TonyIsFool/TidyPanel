@@ -49,6 +49,10 @@ print(result$audit)
 unlink(tmp)
 ```
 
+## Contact
+
+Questions, feedback, and bug reports are welcome at xulunt123@gmail.com.
+
 ## License
 
 MIT (c) TonyIsFool
