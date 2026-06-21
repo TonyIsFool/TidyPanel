@@ -51,3 +51,19 @@ test_that("detect_panel_structure detects aggregation rows", {
     expect_gte(report$n_aggregation_rows, 1)
     unlink(tmp)
 })
+
+test_that("detect_panel_structure does not treat export dates or period labels as data rows", {
+    raw <- data.frame(
+        X1 = c("Exported: 2026-06-01", "Metric", "Revenue", "Cost"),
+        X2 = c("", "Week 0", "100", "80"),
+        X3 = c("", "Week 12", "130", "90"),
+        stringsAsFactors = FALSE
+    )
+
+    report <- detect_panel_structure(raw, verbose = FALSE)
+
+    expect_equal(report$estimated_decoy_rows, 1)
+    expect_equal(report$n_data_blocks, 1)
+    expect_false(report$has_temporal_cols)
+    expect_false(grepl("auto_pivot = TRUE", report$recommended_call, fixed = TRUE))
+})

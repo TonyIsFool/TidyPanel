@@ -1,0 +1,18 @@
+DemoScript:
+  type: programming
+  extensions:
+    - .demo
+    - .dms
+  aliases:
+    - demo-script
+    - dscript
+  language_id: 101
+  searchable: true
+DemoMarkup:
+  type: markup
+  extensions:
+    - .dmk
+  aliases:
+    - demo-markup
+  language_id: 102
+  searchable: false

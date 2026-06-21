@@ -1,0 +1,7 @@
+Company: Northstar Demo Retail
+Values in thousands USD
+Store ID,Region,Net Sales,Return Rate
+101,North,1.2,3.5%
+102,South,0.8,2.1%
+Total,,2.0,
+Notes: Synthetic demo export only.

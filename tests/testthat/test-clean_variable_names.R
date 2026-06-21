@@ -39,3 +39,28 @@ test_that("clean_variable_names handles Excel dates properly", {
     res <- clean_variable_names(df)
     expect_equal(colnames(res), "2021-01-01")
 })
+
+test_that("clean_variable_names keeps Unicode scientific numerals as ASCII digits", {
+    df <- data.frame(a = 1, b = 2, c = 3, check.names = FALSE)
+    colnames(df) <- c(
+        "Annual CO\u2082 emissions",
+        "PM\u2082.\u2085 concentration",
+        "CH\u2084 intensity"
+    )
+
+    res <- clean_variable_names(df)
+
+    expect_equal(
+        colnames(res),
+        c("annual_co2_emissions", "pm2_5_concentration", "ch4_intensity")
+    )
+})
+
+test_that("clean_variable_names splits camelCase variable names", {
+    df <- data.frame(a = 1, b = 2, c = 3, check.names = FALSE)
+    colnames(df) <- c("customerBalanceUSD", "customerCount", "HTTPStatusCode")
+
+    res <- clean_variable_names(df)
+
+    expect_equal(colnames(res), c("customer_balance_usd", "customer_count", "http_status_code"))
+})

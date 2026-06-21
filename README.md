@@ -1,9 +1,9 @@
-# TidyPanel <img src="man/figures/logo.png" align="right" height="139" />
+# TidyPanel
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-**TidyPanel** is an industrial-grade parser designed to extract clean, standardized data frames from heavily malformed, human-readable Excel reports. If you have ever struggled to parse financial statements, ERP exports, or complex tables with N-dimensional headers, decoy rows, and embedded subtotals, `TidyPanel` is built for you.
+**TidyPanel** extracts clean, standardized data frames from messy spreadsheet-like tables. This public submission copy uses synthetic examples only and does not include internal datasets, customer files, debug traces, or development notes.
 
 ## Installation
 
@@ -11,42 +11,44 @@ You can install the development version of TidyPanel from GitHub with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("TonyL/TidyPanel")
+devtools::install_github("TonyIsFool/TidyPanel")
 ```
 
 ## Why TidyPanel?
 
-Real-world commercial data is rarely tidy. It contains multi-line merged headers, embedded subtotal rows, empty "ghost" columns, and categorical hierarchies defined purely by visual indentation (e.g., in a Profit & Loss statement).
+Spreadsheet exports are rarely tidy. They may contain multi-line headers, decoy rows, empty ghost columns, embedded subtotals, and multiple tables on the same sheet.
 
 `TidyPanel` uses a multi-phase heuristic engine to:
+
 1. **Bypass Decoy Rows**: Skips irrelevant metadata at the top of the sheet.
-2. **N-Dimensional Header Stitching**: Intelligently identifies multiline headers and forward-fills merged cells to create flat, readable column names.
-3. **Indentation Hierarchy Extraction**: Uses leading spaces to identify parent-child categorical relationships and creates a `parent_category` column.
-4. **Smart Data Amputation**: Automatically removes decorative page breaks, mid-table subtotals, and ghost aggregate rows.
-5. **Auto Pivot**: Detects temporal columns (e.g., Q1, 2021, FY23) and pivots them into a tidy, long format.
-6. **Semantic Cleaners**: Automatically detects and normalizes accounting dashes, non-standard scientific notation, and financial multipliers (e.g., "1.5M" -> 1500000).
+2. **Header Stitching**: Identifies multi-line headers and creates flat, readable column names.
+3. **Smart Cleanup**: Removes decorative breaks, subtotal rows, and ghost columns.
+4. **Auto Pivot**: Detects temporal columns such as Q1, 2021, or FY23 and pivots them into long format.
+5. **Semantic Cleaners**: Normalizes accounting dashes, percentages, currencies, and common numeric formats.
 
-## 100% Transparency: The Audit Log
+## Synthetic Example
 
-Data parsing should never be a "black box". TidyPanel features a unique **Audit Log** that explicitly records every transformation applied to your data. By setting `return_audit = TRUE`, you get both the cleaned data and a precise ledger of what was modified.
+The example below creates a temporary workbook with toy data, reads it, and returns an audit trail.
 
 ``` r
 library(TidyPanel)
 
-# Read data and get an audit trail
-result <- read_messy_panel("data_raw/financial_report.xlsx", return_audit = TRUE)
+tmp <- tempfile(fileext = ".xlsx")
+toy <- data.frame(
+  X1 = c("Demo Export", "Region", "North", "South", "Total"),
+  X2 = c("", "Sales", "100", "250", "350"),
+  stringsAsFactors = FALSE
+)
+writexl::write_xlsx(toy, tmp)
 
-# View the audit trail
+result <- read_messy_panel(tmp, return_audit = TRUE)
+
+print(result$data)
 print(result$audit)
-```
-```text
-=== Algorithm Modification Audit Log ===
-                        Operation Count
-1             Decoy Rows Bypassed     5
-2 Indentation Hierarchy Extracted     3
-3       Ghost Bottom Rows Dropped     4
+
+unlink(tmp)
 ```
 
 ## License
 
-MIT © Tony Lu
+MIT (c) TonyIsFool

@@ -59,7 +59,7 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         ext <- tolower(tools::file_ext(path))
         sep <- if (ext == "tsv") "\t" else ","
         raw <- suppressMessages(suppressWarnings(
-            read.csv(path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE)
+            read.csv(path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE, fill = TRUE, blank.lines.skip = FALSE)
         ))
     } else {
         raw <- suppressMessages(suppressWarnings(
@@ -134,7 +134,7 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
     # Check all cells in the sheet for year-like (19xx/20xx) or quarter-like patterns.
     all_cells <- as.vector(mat)
     all_cells <- all_cells[!is.na(all_cells)]
-    temporal_pattern <- "^(19|20)[0-9]{2}$|^[Qq][1-4]$|^[Hh][1-2]$|^[Ff][Yy][0-9]|^[A-Za-z]{3}[-_/][0-9]{2,4}$"
+    temporal_pattern <- "^(19|20)[0-9]{2}$|^[Qq][1-4]$|^[Hh][1-2]$|^[Ff][Yy][0-9]|^[A-Za-z]{3}[-_/][0-9]{2,4}$|^[0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{2,4}$"
     n_temporal_like <- sum(stringr::str_detect(all_cells, temporal_pattern), na.rm = TRUE)
     has_temporal_cols <- n_temporal_like >= 3
 
@@ -156,6 +156,9 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
     # Minimal logic mirroring read_messy_panel gap analysis
     is_numeric_like <- function(x) {
         if (is.na(x) || stringr::str_trim(x) == "") return(TRUE)
+        if (grepl("(?i)^\\s*(week|wk|day|month|mo|visit|cycle|period|baseline|follow\\s*up|follow-up)\\s*[-_: ]*\\d+\\s*$", x, perl = TRUE)) return(FALSE)
+        if (grepl("(?i)^\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\\.?\\s+\\d{1,2},?\\s+(19|20)\\d{2}\\s*$", x, perl = TRUE)) return(FALSE)
+        if (grepl("^\\s*(?:\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}|\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4})\\s*$", x, perl = TRUE)) return(FALSE)
         !is.na(suppressWarnings(as.numeric(stringr::str_remove_all(x, "[,%$]"))))
     }
     num_counts <- apply(mat, 1, function(row) {

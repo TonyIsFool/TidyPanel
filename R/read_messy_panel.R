@@ -44,7 +44,24 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
   is_df <- is.data.frame(file_path)
   is_csv <- FALSE
   if (!is_df && is.character(file_path)) {
-      is_csv <- tolower(tools::file_ext(file_path)) %in% c("csv", "tsv", "txt")
+      is_csv <- tolower(tools::file_ext(file_path)) %in% c("csv", "tsv", "txt", "rdb")
+  }
+  is_yaml <- !is_df && is.character(file_path) && length(file_path) == 1 &&
+      tolower(tools::file_ext(file_path)) %in% c("yml", "yaml")
+
+  if (is_yaml) {
+      yaml <- parse_yaml_records_file(file_path, clean_vars = clean_vars)
+      audit_df <- data.frame(
+          Operation = names(yaml$audit),
+          Count = as.character(unlist(yaml$audit, use.names = FALSE)),
+          stringsAsFactors = FALSE
+      )
+      audit_df <- audit_df[audit_df$Count != "0", , drop = FALSE]
+      rownames(audit_df) <- NULL
+      if (return_audit) {
+          return(list(data = yaml$data, audit = audit_df))
+      }
+      return(yaml$data)
   }
 
   if (is.character(sheet) && length(sheet) == 1 && toupper(sheet) == "ALL") {
@@ -102,6 +119,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
   is_numeric_like <- function(x) {
     if (is.na(x) || x %in% na_strings) return(TRUE) 
     clean_x <- stringr::str_remove_all(x, intToUtf8(160))
+    if (grepl("(?i)^\\s*(week|wk|day|month|mo|visit|cycle|period|baseline|follow\\s*up|follow-up)\\s*[-_: ]*\\d+\\s*$", clean_x, perl = TRUE)) return(FALSE)
+    if (grepl("(?i)^\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\\.?\\s+\\d{1,2},?\\s+(19|20)\\d{2}\\s*$", clean_x, perl = TRUE)) return(FALSE)
+    if (grepl("^\\s*(?:\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}|\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4})\\s*$", clean_x, perl = TRUE)) return(FALSE)
     if (stringr::str_trim(clean_x) %in% c("-", "\u2013", "\u2014")) return(TRUE)
     if (grepl("^[-\u2014\u2013\u2014]+$", stringr::str_trim(clean_x))) return(TRUE)
     if (grepl("(?i)^(Q[1-4]|H[1-2]|FY[0-9]+)$", stringr::str_trim(clean_x))) return(FALSE)
@@ -132,6 +152,8 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
   
   for (s in sheets_to_try) {
     res <- tryCatch({
+      preamble_rows_dropped <- 0
+      rdb_field_type_rows_dropped <- 0
       if (is_df) {
           raw_data <- as.data.frame(file_path, stringsAsFactors = FALSE)
           if (!all(grepl("^(V|X|Col)[0-9A-Za-z]*$|^\\.\\.\\.[0-9]+$", colnames(raw_data)))) {
@@ -140,11 +162,23 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
           colnames(raw_data) <- NULL
       } else if (is_csv) {
           ext <- tolower(tools::file_ext(file_path))
-          sep <- if (ext == "tsv") "\t" else ","
-          raw_data <- suppressMessages(read.csv(file_path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE))
+          sep <- if (ext %in% c("tsv", "rdb")) "\t" else ","
+          raw_data <- suppressMessages(read_delimited_text_file(file_path, sep))
+          attr_preamble <- attr(raw_data, "preamble_rows_dropped", exact = TRUE)
+          if (!is.null(attr_preamble)) {
+              preamble_rows_dropped <- as.integer(attr_preamble)
+          }
       } else {
           raw_data <- suppressMessages(readxl::read_excel(file_path, sheet = s, col_names = FALSE, .name_repair = "minimal", trim_ws = FALSE))
       }
+      if (nrow(raw_data) == 0) stop("Empty sheet")
+      preamble_strip <- strip_explicit_delimited_preamble(raw_data)
+      raw_data <- preamble_strip$data
+      preamble_rows_dropped <- preamble_rows_dropped + preamble_strip$count
+      if (nrow(raw_data) == 0) stop("Empty sheet")
+      rdb_type_strip <- strip_rdb_field_type_row(raw_data)
+      raw_data <- rdb_type_strip$data
+      rdb_field_type_rows_dropped <- rdb_type_strip$count
       if (nrow(raw_data) == 0) stop("Empty sheet")
       
       raw_mat <- as.matrix(raw_data)
@@ -199,8 +233,12 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       num_counts <- apply(raw_mat, 1, function(row) {
         sum(vapply(row, is_numeric_like, logical(1)) & !is.na(row) & row != "")
       })
+      temporal_counts <- apply(raw_mat, 1, function(row) {
+        sum(vapply(row, is_temporal_data_signal_value, logical(1)) & !is.na(row) & stringr::str_trim(row) != "")
+      })
+      data_signal_counts <- num_counts + temporal_counts
       
-      is_data_row <- num_counts >= 1
+      is_data_row <- expand_temporal_data_rows(num_counts >= 1, temporal_counts >= 1)
       true_runs_indices <- which(is_data_row == TRUE)
       
       if (length(true_runs_indices) == 0) {
@@ -232,10 +270,16 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       block_results <- lapply(blocks_to_process, function(current_block) {
         withCallingHandlers({
         audit_log <- list()
+        if (preamble_rows_dropped > 0) {
+            audit_log[["Delimited Preamble Rows Dropped"]] <- preamble_rows_dropped
+        }
+        if (rdb_field_type_rows_dropped > 0) {
+            audit_log[["RDB Field Type Rows Dropped"]] <- rdb_field_type_rows_dropped
+        }
         start_data_row <- min(current_block)
         end_data_row <- max(current_block)
       
-      main_block_counts <- num_counts[start_data_row:end_data_row]
+      main_block_counts <- data_signal_counts[start_data_row:end_data_row]
       mode_count <- as.numeric(names(sort(table(main_block_counts), decreasing = TRUE)[1]))
       
       # We know header must be above true_start. We walk up looking for a header boundary.
@@ -252,7 +296,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
                   looks_like_header <- TRUE
               }
           }
-          if (non_empty > 0 && num_counts[true_start - 1] == 0 && !looks_like_header) {
+          if (non_empty > 0 && data_signal_counts[true_start - 1] == 0 && !looks_like_header) {
               true_start <- true_start - 1
               walked <- walked + 1
           } else {
@@ -272,7 +316,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       }
       
       while (true_start <= end_data_row) {
-          if (num_counts[true_start] < density_threshold) {
+          if (data_signal_counts[true_start] < density_threshold) {
               true_start <- true_start + 1
               next
           }
@@ -431,7 +475,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       
       data_block <- raw_mat[true_start:true_end, , drop = FALSE]
       
-      block_counts <- num_counts[true_start:true_end]
+      block_counts <- data_signal_counts[true_start:true_end]
       internal_valid_rows <- (block_counts >= density_threshold)
       
       # Hierarchical Section Header Propagation
@@ -529,6 +573,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       
       # Phase 6: Forward-fill leading character columns (Staircase Ledgers)
       for (c in 1:min(2, ncol(df))) {
+          if (is_geographic_subdivision_column(colnames(df)[c])) next
           col_vals <- as.character(df[[c]])
           valid_vals <- col_vals[!is.na(col_vals) & stringr::str_trim(col_vals) != ""]
           if (length(valid_vals) > 0) {
@@ -626,7 +671,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       subtotal_cols_dropped <- c()
       for (c in seq_len(ncol(df))) {
           col_name <- tolower(colnames(df)[c])
-          if (any(vapply(col_agg_keywords, function(k) grepl(k, col_name, fixed = TRUE), logical(1)))) {
+          if (is_aggregation_summary_column(col_name, col_agg_keywords)) {
               if (c > 1) { # Protect the first column
                   cols_to_keep[c] <- FALSE
                   subtotal_cols_dropped <- c(subtotal_cols_dropped, col_name)
@@ -651,6 +696,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       
       # Forward-fill NAs in leading character columns (Handling Merged Cells)
       for (j in seq_len(ncol(df))) {
+          if (is_geographic_subdivision_column(colnames(df)[j])) next
           col_vals <- df[[j]]
           valid_idx <- which(!is.na(col_vals) & col_vals != "")
           valid_count <- length(valid_idx)
@@ -678,7 +724,24 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         x
       })
       
-      df[] <- lapply(df, function(x) {
+      df[] <- lapply(seq_along(df), function(i) {
+        x <- df[[i]]
+        cn <- colnames(df)[i]
+        if (is_time_of_day_column(cn) && is_mostly_time_of_day(x)) {
+            cleaned_time <- stringr::str_trim(as.character(x))
+            cleaned_time[cleaned_time == ""] <- NA_character_
+            return(cleaned_time)
+        }
+        if (is_compact_time_code_column(cn, x)) {
+            cleaned_code <- stringr::str_trim(as.character(x))
+            cleaned_code[cleaned_code == ""] <- NA_character_
+            return(cleaned_code)
+        }
+        if (is_postal_code_column(cn)) {
+            cleaned_postal <- stringr::str_trim(as.character(x))
+            cleaned_postal[cleaned_postal == ""] <- NA_character_
+            return(cleaned_postal)
+        }
         clean_x <- stringr::str_remove_all(x, intToUtf8(160))
         
         # Phase 4: Convert Accounting Zeros to 0
@@ -707,6 +770,8 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         clean_x <- stringr::str_remove_all(clean_x, ",")
         
         # Phase 11: Semantic Multiplier Engine
+        stat_flag_idx <- grepl("(?i)(?<=[0-9])\\s+[bcdefnprsuwz]{1,3}\\s*$", clean_x, perl = TRUE) & !is.na(clean_x)
+        clean_x[stat_flag_idx] <- stringr::str_replace(clean_x[stat_flag_idx], "(?i)(?<=[0-9])\\s+[bcdefnprsuwz]{1,3}\\s*$", "")
         multiplier <- rep(1, length(clean_x))
         k_idx <- grepl("(?i)[-0-9.]+\\s*(k|\u5343)$", clean_x) & !is.na(clean_x)
         wan_idx <- grepl("(?i)[-0-9.]+\\s*(w|wan|\u4e07)$", clean_x) & !is.na(clean_x)
@@ -729,9 +794,11 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         
         # Exclude quarters from being stripped and converted
         is_quarter <- grepl("(?i)^(Q[1-4]|H[1-2]|FY[0-9]+)$", stringr::str_trim(x))
+        is_month_name_date <- grepl("(?i)^\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\\.?\\s+\\d{1,2},?\\s+(19|20)\\d{2}\\s*$", stringr::str_trim(x))
         
-        clean_x[!is_quarter] <- stringr::str_replace(clean_x[!is_quarter], "\\s*[A-Za-z\u4e00-\u9fa5]+\\s*$", "")
-        clean_x[!is_quarter] <- stringr::str_replace(clean_x[!is_quarter], "^\\s*[A-Za-z\u4e00-\u9fa5]+\\s*", "")
+        strip_alpha_idx <- !is_quarter & !is_month_name_date
+        clean_x[strip_alpha_idx] <- stringr::str_replace(clean_x[strip_alpha_idx], "\\s*[A-Za-z\u4e00-\u9fa5]+\\s*$", "")
+        clean_x[strip_alpha_idx] <- stringr::str_replace(clean_x[strip_alpha_idx], "^\\s*[A-Za-z\u4e00-\u9fa5]+\\s*", "")
         
         num_x <- suppressWarnings(as.numeric(clean_x))
         
@@ -746,9 +813,20 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
         return(stringr::str_trim(final_str))
       })
       
-      colnames(df) <- tolower(colnames(df)) 
       if (clean_vars) {
         df <- clean_variable_names(df)
+      } else {
+        colnames(df) <- tolower(colnames(df))
+      }
+      geo_repair <- repair_spurious_geographic_subdivision_fill(df)
+      df <- geo_repair$data
+      if (geo_repair$count > 0) {
+          audit_log[["Geographic Subdivision Fill Repaired"]] <- geo_repair$count
+      }
+      index_drop <- drop_export_index_column(df)
+      df <- index_drop$data
+      if (!is.na(index_drop$name)) {
+          audit_log[["Export Index Column Dropped"]] <- index_drop$name
       }
       
       # Phase 15: Common Prefix Stripping
@@ -788,7 +866,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
       
       if (auto_pivot && nrow(df) > 0) {
           cnames <- colnames(df)
-          temporal_pattern <- "^(19|20)[0-9]{2}(_q[1-4]|_h[1-2]|_[0-1]?[0-9]|_[a-z]{3})?$|^(q[1-4]|h[1-2]|fy[0-9]+)$|^[a-z]{3}_([0-9]{2}|(19|20)[0-9]{2})$"
+          temporal_pattern <- "^(19|20)[0-9]{2}(_q[1-4]|_h[1-2]|_[0-1]?[0-9]|_[a-z]{3})?$|^(q[1-4]|h[1-2]|fy[0-9]+)$|^[a-z]{3}_([0-9]{2}|(19|20)[0-9]{2})$|^[0-9]{1,2}_[0-9]{1,2}_[0-9]{2,4}$"
           is_temporal <- grepl(temporal_pattern, cnames)
           
           if (sum(is_temporal) >= 2) {
@@ -861,4 +939,481 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", "NA", "
   }
   
   stop(paste("Failed to parse any valid panel from file.", last_error))
+}
+
+is_geographic_subdivision_column <- function(name) {
+  if (is.na(name) || name == "") return(FALSE)
+  grepl("(^|[/_ .-])(province|state|county|admin)([/_ .-]|$)", name, ignore.case = TRUE)
+}
+
+strip_explicit_delimited_preamble <- function(raw_data) {
+  if (!is.data.frame(raw_data) || nrow(raw_data) < 2 || ncol(raw_data) < 1) {
+      return(list(data = raw_data, count = 0))
+  }
+  first_col <- stringr::str_trim(as.character(raw_data[[1]]))
+  marker_idx <- which(grepl("^-+\\s*end\\s+header\\s*-+$", first_col, ignore.case = TRUE, perl = TRUE))
+  if (length(marker_idx) == 0) {
+      return(list(data = raw_data, count = 0))
+  }
+  idx <- marker_idx[1]
+  if (idx >= nrow(raw_data)) {
+      return(list(data = raw_data, count = 0))
+  }
+  if (ncol(raw_data) == 1) {
+      remaining_lines <- as.character(raw_data[[1]][(idx + 1):nrow(raw_data)])
+      remaining_lines <- remaining_lines[!is.na(remaining_lines) & remaining_lines != ""]
+      if (length(remaining_lines) == 0) {
+          return(list(data = raw_data, count = 0))
+      }
+      sep <- detect_text_separator(remaining_lines)
+      parsed <- utils::read.csv(
+          text = paste(remaining_lines, collapse = "\n"),
+          header = FALSE, sep = sep, stringsAsFactors = FALSE,
+          na.strings = NULL, colClasses = "character", strip.white = FALSE,
+          fill = TRUE, blank.lines.skip = FALSE
+      )
+      return(list(data = parsed, count = idx))
+  }
+  next_vals <- stringr::str_trim(as.character(raw_data[idx + 1, , drop = TRUE]))
+  next_vals <- next_vals[!is.na(next_vals) & next_vals != ""]
+  if (length(next_vals) < 2) {
+      return(list(data = raw_data, count = 0))
+  }
+  list(data = raw_data[(idx + 1):nrow(raw_data), , drop = FALSE], count = idx)
+}
+
+read_delimited_text_file <- function(path, sep_hint = ",") {
+  lines <- readLines(path, warn = FALSE)
+  comment_strip <- strip_hash_comment_lines(lines)
+  lines <- comment_strip$lines
+  stripped <- strip_explicit_preamble_lines(lines)
+  lines <- stripped$lines
+  sep <- if (stripped$count > 0) detect_text_separator(lines) else sep_hint
+  parsed <- utils::read.csv(
+      text = paste(lines, collapse = "\n"),
+      header = FALSE, sep = sep, stringsAsFactors = FALSE,
+      na.strings = NULL, colClasses = "character", strip.white = FALSE,
+      fill = TRUE, blank.lines.skip = FALSE
+  )
+  attr(parsed, "preamble_rows_dropped") <- comment_strip$count + stripped$count
+  parsed
+}
+
+strip_hash_comment_lines <- function(lines) {
+  if (length(lines) == 0) {
+      return(list(lines = lines, count = 0))
+  }
+  is_comment <- grepl("^\\s*#", lines)
+  keep <- !is_comment
+  list(lines = lines[keep], count = sum(is_comment))
+}
+
+strip_explicit_preamble_lines <- function(lines) {
+  if (length(lines) < 2) {
+      return(list(lines = lines, count = 0))
+  }
+  marker_idx <- which(grepl("^-+\\s*end\\s+header\\s*-+$", stringr::str_trim(lines), ignore.case = TRUE, perl = TRUE))
+  if (length(marker_idx) > 0 && marker_idx[1] < length(lines)) {
+      remaining <- lines[(marker_idx[1] + 1):length(lines)]
+      if (length(remaining) > 0 && max(vapply(gregexpr(",", remaining, fixed = TRUE), function(m) {
+          if (length(m) == 1 && m[1] == -1) 0L else length(m)
+      }, integer(1))) > 0) {
+          return(list(lines = remaining, count = marker_idx[1]))
+      }
+  }
+
+  metadata_strip <- strip_blank_delimited_metadata_preamble_lines(lines)
+  if (metadata_strip$count > 0) {
+      return(metadata_strip)
+  }
+
+  list(lines = lines, count = 0)
+}
+
+strip_blank_delimited_metadata_preamble_lines <- function(lines) {
+  if (length(lines) < 4) {
+      return(list(lines = lines, count = 0))
+  }
+  trimmed <- stringr::str_trim(lines)
+  blank_idx <- which(trimmed == "")
+  blank_idx <- blank_idx[blank_idx < length(lines)]
+  if (length(blank_idx) == 0) {
+      return(list(lines = lines, count = 0))
+  }
+
+  for (idx in blank_idx) {
+      candidate_start <- idx + 1
+      while (candidate_start <= length(lines) && trimmed[candidate_start] == "") {
+          candidate_start <- candidate_start + 1
+      }
+      if (candidate_start >= length(lines)) next
+
+      leading_nonblank <- sum(trimmed[seq_len(candidate_start - 1)] != "")
+      if (leading_nonblank == 0 || leading_nonblank > 10) next
+
+      remaining <- lines[candidate_start:length(lines)]
+      remaining_nonblank <- remaining[stringr::str_trim(remaining) != ""]
+      if (length(remaining_nonblank) < 2) next
+
+      sep <- detect_text_separator(remaining_nonblank)
+      header <- stringr::str_trim(split_delimited_fields(remaining_nonblank[1], sep))
+      header <- header[header != ""]
+      if (length(header) < 2) next
+
+      data_lines <- remaining_nonblank[-1]
+      check_n <- min(5, length(data_lines))
+      data_fields <- lapply(data_lines[seq_len(check_n)], split_delimited_fields, sep = sep)
+      width_ok <- mean(vapply(data_fields, function(fields) {
+          length(fields) >= max(2, length(header) - 1)
+      }, logical(1))) >= 0.8
+      values <- stringr::str_trim(unlist(data_fields, use.names = FALSE))
+      has_data_signal <- any(vapply(values, function(value) {
+          is_delimited_data_signal_value(value)
+      }, logical(1)))
+      has_temporal_header <- any(grepl("(^time$|date|timestamp|^year$|^month$|^day$)", tolower(header)))
+
+      if (width_ok && has_data_signal && (has_temporal_header || length(data_lines) >= leading_nonblank)) {
+          return(list(lines = remaining, count = candidate_start - 1))
+      }
+  }
+
+  list(lines = lines, count = 0)
+}
+
+split_delimited_fields <- function(line, sep) {
+  if (length(line) == 0 || is.na(line)) {
+      return(character(0))
+  }
+  parsed <- tryCatch(
+      utils::read.csv(
+          text = line, header = FALSE, sep = sep, stringsAsFactors = FALSE,
+          na.strings = NULL, colClasses = "character", strip.white = FALSE,
+          fill = TRUE, blank.lines.skip = FALSE, comment.char = ""
+      ),
+      error = function(e) NULL
+  )
+  if (is.null(parsed) || nrow(parsed) == 0) {
+      return(strsplit(line, sep, fixed = TRUE)[[1]])
+  }
+  as.character(parsed[1, , drop = TRUE])
+}
+
+is_delimited_data_signal_value <- function(value) {
+  if (length(value) == 0 || is.na(value)) {
+      return(FALSE)
+  }
+  value <- stringr::str_trim(as.character(value))
+  if (value == "") {
+      return(FALSE)
+  }
+  if (grepl("^(19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}", value)) {
+      return(TRUE)
+  }
+  numeric_value <- suppressWarnings(as.numeric(gsub(",", "", value, fixed = TRUE)))
+  !is.na(numeric_value)
+}
+
+is_temporal_data_signal_value <- function(value) {
+  if (length(value) == 0 || is.na(value)) {
+      return(FALSE)
+  }
+  value <- stringr::str_trim(as.character(value))
+  if (value == "") {
+      return(FALSE)
+  }
+  grepl("^(19|20)[0-9]{2}[-/][0-9]{1,2}[-/][0-9]{1,2}$", value, perl = TRUE)
+}
+
+expand_temporal_data_rows <- function(numeric_rows, temporal_rows) {
+  if (length(numeric_rows) == 0) {
+      return(logical(0))
+  }
+  included <- as.logical(numeric_rows)
+  temporal_rows <- as.logical(temporal_rows)
+  repeat {
+      prev_included <- c(FALSE, included[-length(included)])
+      next_included <- c(included[-1], FALSE)
+      expanded <- included | (temporal_rows & (prev_included | next_included))
+      if (identical(expanded, included)) {
+          break
+      }
+      included <- expanded
+  }
+  included
+}
+
+detect_text_separator <- function(lines) {
+  candidates <- c("," = ",", ";" = ";", "\t" = "\t", "|" = "|")
+  counts <- vapply(candidates, function(sep) {
+      sum(vapply(gregexpr(sep, lines, fixed = TRUE), function(m) {
+          if (length(m) == 1 && m[1] == -1) 0L else length(m)
+      }, integer(1)))
+  }, integer(1))
+  if (max(counts) > 0) candidates[[which.max(counts)]] else ","
+}
+
+parse_yaml_records_file <- function(path, clean_vars = TRUE) {
+  obj <- yaml::read_yaml(path, eval.expr = FALSE)
+  records <- yaml_record_rows(obj)
+  rows <- records$rows
+  if (length(rows) == 0) {
+      stop("YAML input does not contain record-like data.")
+  }
+
+  all_cols <- unique(unlist(lapply(rows, names), use.names = FALSE))
+  df <- as.data.frame(
+      stats::setNames(lapply(all_cols, function(col) yaml_column_vector(rows, col)), all_cols),
+      stringsAsFactors = FALSE
+  )
+
+  if (clean_vars && ncol(df) > 0) {
+      df <- clean_variable_names(df)
+  }
+
+  audit <- list(
+      "YAML Records Parsed" = nrow(df),
+      "YAML Fields Parsed" = ncol(df)
+  )
+  if (!is.null(records$name_column)) {
+      audit[["YAML Record Name Column"]] <- records$name_column
+  }
+  if (records$collapsed_fields > 0) {
+      audit[["YAML Vector Fields Collapsed"]] <- records$collapsed_fields
+  }
+
+  list(data = df, audit = audit)
+}
+
+yaml_record_rows <- function(obj) {
+  if (!is.list(obj) || length(obj) == 0) {
+      stop("YAML input does not contain a list or mapping.")
+  }
+
+  names_obj <- names(obj)
+  has_record_names <- !is.null(names_obj) &&
+      length(names_obj) == length(obj) &&
+      all(!is.na(names_obj) & names_obj != "")
+  record_like <- vapply(obj, is_yaml_record_object, logical(1))
+
+  if (has_record_names && any(record_like)) {
+      rows <- Map(function(record_name, record) {
+          c(list(record_name = record_name), flatten_yaml_record(record))
+      }, names_obj[record_like], obj[record_like])
+      collapsed <- sum(vapply(obj[record_like], count_yaml_collapsed_fields, integer(1)))
+      return(list(rows = rows, name_column = "record_name", collapsed_fields = collapsed))
+  }
+
+  if (!has_record_names && all(record_like)) {
+      rows <- lapply(obj, flatten_yaml_record)
+      collapsed <- sum(vapply(obj, count_yaml_collapsed_fields, integer(1)))
+      return(list(rows = rows, name_column = NULL, collapsed_fields = collapsed))
+  }
+
+  if (has_record_names) {
+      rows <- Map(function(key, value) {
+          list(record_name = key, value = scalarize_yaml_value(value))
+      }, names_obj, obj)
+      collapsed <- sum(vapply(obj, count_yaml_collapsed_fields, integer(1)))
+      return(list(rows = rows, name_column = "record_name", collapsed_fields = collapsed))
+  }
+
+  stop("YAML input does not contain record-like data.")
+}
+
+is_yaml_record_object <- function(value) {
+  is.list(value) && length(value) > 0 && !is.null(names(value)) &&
+      any(!is.na(names(value)) & names(value) != "")
+}
+
+flatten_yaml_record <- function(record, prefix = NULL) {
+  if (!is_yaml_record_object(record)) {
+      key <- if (is.null(prefix)) "value" else prefix
+      out <- list(scalarize_yaml_value(record))
+      names(out) <- key
+      return(out)
+  }
+
+  out <- list()
+  for (nm in names(record)) {
+      value <- record[[nm]]
+      key <- if (is.null(prefix)) nm else paste(prefix, nm, sep = "_")
+      if (is_yaml_record_object(value)) {
+          out <- c(out, flatten_yaml_record(value, prefix = key))
+      } else {
+          out[[key]] <- scalarize_yaml_value(value)
+      }
+  }
+  out
+}
+
+scalarize_yaml_value <- function(value) {
+  if (is.null(value)) {
+      return(NA_character_)
+  }
+  if (is.atomic(value)) {
+      if (length(value) == 0) {
+          return(NA_character_)
+      }
+      if (length(value) == 1) {
+          return(value)
+      }
+      return(paste(as.character(value), collapse = ", "))
+  }
+  flattened <- unlist(value, recursive = TRUE, use.names = FALSE)
+  if (length(flattened) == 0) NA_character_ else paste(as.character(flattened), collapse = ", ")
+}
+
+yaml_column_vector <- function(rows, col) {
+  values <- lapply(rows, function(row) {
+      value <- row[[col]]
+      if (is.null(value)) NA else value
+  })
+  is_missing <- vapply(values, function(value) length(value) == 1 && is.na(value), logical(1))
+  non_missing <- values[!is_missing]
+
+  if (length(non_missing) > 0 &&
+      all(vapply(non_missing, function(value) is.numeric(value) || is.integer(value), logical(1)))) {
+      return(as.numeric(unlist(values, use.names = FALSE)))
+  }
+  if (length(non_missing) > 0 &&
+      all(vapply(non_missing, is.logical, logical(1)))) {
+      return(as.logical(unlist(values, use.names = FALSE)))
+  }
+
+  out <- as.character(unlist(values, use.names = FALSE))
+  out[is_missing] <- NA_character_
+  out
+}
+
+count_yaml_collapsed_fields <- function(value) {
+  if (is.null(value)) {
+      return(0L)
+  }
+  if (is.atomic(value)) {
+      return(as.integer(length(value) > 1))
+  }
+  if (is_yaml_record_object(value)) {
+      return(sum(vapply(value, count_yaml_collapsed_fields, integer(1))))
+  }
+  as.integer(length(value) > 1)
+}
+
+strip_rdb_field_type_row <- function(raw_data) {
+  if (!is.data.frame(raw_data) || nrow(raw_data) < 3) {
+      return(list(data = raw_data, count = 0))
+  }
+  vals <- stringr::str_trim(as.character(raw_data[2, , drop = TRUE]))
+  vals <- vals[!is.na(vals) & vals != ""]
+  if (length(vals) == 0 || !all(grepl("^[0-9]+[A-Za-z]$", vals))) {
+      return(list(data = raw_data, count = 0))
+  }
+  stripped <- raw_data[-2, , drop = FALSE]
+  rownames(stripped) <- NULL
+  list(data = stripped, count = 1)
+}
+
+repair_spurious_geographic_subdivision_fill <- function(df) {
+  country_cols <- which(grepl("(^|[/_ .-])country([/_ .-]|$)|country_region|country.region", colnames(df), ignore.case = TRUE))
+  sub_cols <- which(vapply(colnames(df), is_geographic_subdivision_column, logical(1)))
+  if (length(country_cols) == 0 || length(sub_cols) == 0 || nrow(df) < 2) {
+      return(list(data = df, count = 0))
+  }
+
+  country <- as.character(df[[country_cols[1]]])
+  repaired <- 0
+  for (sc in sub_cols) {
+      vals <- as.character(df[[sc]])
+      for (r in 2:nrow(df)) {
+          current_val <- stringr::str_trim(vals[r])
+          previous_val <- stringr::str_trim(vals[r - 1])
+          current_country <- stringr::str_trim(country[r])
+          previous_country <- stringr::str_trim(country[r - 1])
+          if (
+              !is.na(current_val) && current_val != "" &&
+              !is.na(previous_val) && current_val == previous_val &&
+              !is.na(current_country) && current_country != "" &&
+              !is.na(previous_country) && current_country != previous_country
+          ) {
+              vals[r] <- NA_character_
+              repaired <- repaired + 1
+          }
+      }
+      df[[sc]] <- vals
+  }
+
+  list(data = df, count = repaired)
+}
+
+drop_export_index_column <- function(df) {
+  if (ncol(df) < 2 || nrow(df) == 0) {
+      return(list(data = df, name = NA_character_))
+  }
+
+  first_name <- tolower(colnames(df)[1])
+  if (!first_name %in% c("rownames", "row_names", "rowname", "row_name", "unnamed_0", "index")) {
+      return(list(data = df, name = NA_character_))
+  }
+
+  vals <- suppressWarnings(as.numeric(as.character(df[[1]])))
+  if (any(is.na(vals)) || any(!is.finite(vals)) || any(vals != floor(vals)) || anyDuplicated(vals)) {
+      return(list(data = df, name = NA_character_))
+  }
+
+  is_sequential <- identical(vals, as.numeric(seq_len(nrow(df))))
+  is_monotone_positive <- all(vals > 0) && all(diff(vals) > 0)
+  if (!is_sequential && !is_monotone_positive) {
+      return(list(data = df, name = NA_character_))
+  }
+
+  list(data = df[, -1, drop = FALSE], name = colnames(df)[1])
+}
+
+is_aggregation_summary_column <- function(col_name, keywords = NULL) {
+  if (is.na(col_name) || col_name == "") return(FALSE)
+  compact_codes <- grepl("^[a-z]{2,6}[0-9]*$", col_name)
+  if (compact_codes) return(FALSE)
+
+  word_pattern <- "(^|[ _./-])(total|subtotal|ytd|average|avg|gesamt|summe|durchschnitt|moyenne|somme|promedio)s?($|[ _./-])"
+  if (grepl(word_pattern, col_name, perl = TRUE)) return(TRUE)
+  if (grepl("^(sum|sums)$|^sum[ _./-]|[ _./-]sum[ _./-]", col_name, perl = TRUE)) return(TRUE)
+
+  any(vapply(c("\u5408\u8ba1", "\u603b\u8ba1", "\u5c0f\u8ba1"), function(k) {
+      grepl(k, col_name, fixed = TRUE)
+  }, logical(1)))
+}
+
+is_time_of_day_column <- function(name) {
+  if (is.na(name) || name == "") return(FALSE)
+  grepl("(^|_)time($|_)", tolower(name), perl = TRUE)
+}
+
+is_mostly_time_of_day <- function(x) {
+  vals <- stringr::str_trim(as.character(x))
+  vals <- vals[!is.na(vals) & vals != ""]
+  if (length(vals) == 0) return(FALSE)
+  mean(grepl("^([01]?\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$", vals, perl = TRUE)) >= 0.95
+}
+
+is_compact_time_code_column <- function(name, x) {
+  if (!is_time_code_column(name)) return(FALSE)
+  vals <- stringr::str_trim(as.character(x))
+  vals <- vals[!is.na(vals) & vals != ""]
+  if (length(vals) == 0) return(FALSE)
+  compact <- grepl("^(?:[A-Za-z]{1,3})?0?[0-9]{1,4}$", vals, perl = TRUE)
+  iso_duration <- grepl("^P[0-9]+[DWMY]$", vals, ignore.case = TRUE, perl = TRUE)
+  compact <- compact | iso_duration
+  has_code_signal <- grepl("^[A-Za-z]{1,3}0?[0-9]{1,4}$|^0[0-9]+$", vals, perl = TRUE) | iso_duration
+  mean(compact) >= 0.95 && any(has_code_signal)
+}
+
+is_time_code_column <- function(name) {
+  if (is.na(name) || name == "") return(FALSE)
+  normalized <- gsub("[^a-z0-9]+", "_", tolower(name))
+  grepl("(^|_)(period|period_code|month|month_code|quarter|quarter_code|cycle|cycle_code|visit|visit_code|time_format)($|_)", normalized, perl = TRUE)
+}
+
+is_postal_code_column <- function(name) {
+  if (is.na(name) || name == "") return(FALSE)
+  normalized <- gsub("[^a-z0-9]+", "_", tolower(name))
+  grepl("(^|_)(zip|zipcode|postal|postcode|fips|geoid|geo_id|county_fips|state_fips|census_tract|tract|site_no|site_number|station|station_id)($|_)", normalized, perl = TRUE)
 }

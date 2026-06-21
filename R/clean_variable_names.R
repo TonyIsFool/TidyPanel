@@ -2,7 +2,8 @@
 #'
 #' @description
 #' `clean_variable_names()` standardizes column names in a messy data frame. It converts all names 
-#' to snake_case, strips special characters (except `_`), translates Excel serial dates (e.g., `44197`) 
+#' to snake_case, normalizes Unicode numeric symbols, strips special characters (except `_`),
+#' translates Excel serial dates (e.g., `44197`)
 #' into ISO date strings (`2021-01-01`), and maps common financial/academic synonyms (e.g., `gvkey`, 
 #' `permno`, `cusip`) to standard names (`id`, `ticker`).
 #'
@@ -30,6 +31,8 @@
 #' @importFrom stringr str_remove_all str_trim str_to_lower
 clean_variable_names <- function(data) {
   clean_names <- stringr::str_trim(colnames(data))
+  clean_names <- normalize_unicode_numeric_symbols(clean_names)
+  clean_names <- split_camel_case_names(clean_names)
   clean_names <- stringr::str_to_lower(clean_names)
   
   # Check if the name is an Excel serial date (e.g. 44197 -> 2021-01-01)
@@ -48,6 +51,7 @@ clean_variable_names <- function(data) {
     "provider id" = "id",
     "employee no." = "id",
     "tracking id" = "id",
+    "entity" = "entity",
     "\u8eab\u4efd\u8bc1\u53f7" = "id",
     "patienten-id" = "id",
     "num\u00e9ro de patient" = "id",
@@ -82,7 +86,7 @@ clean_variable_names <- function(data) {
     "cost center" = "category",
     "g/l account" = "category",
     "destination" = "category",
-    "state" = "category",
+    "state" = "state",
     "soc code" = "category",
     "\u7c7b\u522b" = "category",
     "kategorie" = "category",
@@ -170,4 +174,22 @@ clean_variable_names <- function(data) {
   
   colnames(data) <- clean_names
   return(data)
+}
+
+normalize_unicode_numeric_symbols <- function(x) {
+  x <- chartr(
+    "\u2080\u2081\u2082\u2083\u2084\u2085\u2086\u2087\u2088\u2089",
+    "0123456789",
+    x
+  )
+  chartr(
+    "\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079",
+    "0123456789",
+    x
+  )
+}
+
+split_camel_case_names <- function(x) {
+  x <- gsub("([A-Z]+)([A-Z][a-z])", "\\1 \\2", x, perl = TRUE)
+  gsub("([a-z0-9])([A-Z])", "\\1 \\2", x, perl = TRUE)
 }
