@@ -1,103 +1,57 @@
 ---
-title: "Introduction to TidyPanel"
+title: "Three Small TidyPanel Examples"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to TidyPanel}
+  %\VignetteIndexEntry{Three Small TidyPanel Examples}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
-
-# Welcome to TidyPanel
-
-**TidyPanel** is an industrial-grade parser designed to extract clean, standardized data frames from heavily malformed, human-readable Excel reports. If you have ever struggled to parse financial statements, ERP exports, or complex tables with N-dimensional headers, decoy rows, and embedded subtotals, `TidyPanel` is built for you.
-
-## Features
-
-- **N-Dimensional Header Stitching**: Intelligently identifies multiline headers and forward-fills merged cells to create flat, readable column names.
-- **Indentation Hierarchy Extraction**: Uses leading spaces to identify parent-child categorical relationships in accounting and financial reports.
-- **Smart Data Amputation**: Automatically removes decorative page breaks, mid-table subtotals, and ghost aggregate rows.
-- **Auto Pivot**: Automatically detects temporal columns (e.g., Q1, 2021, FY23) and pivots them into a tidy, long format.
-- **Audit Logs**: Full algorithmic transparency via the `return_audit` parameter.
-
-## Basic Usage
-
-The core function is `read_messy_panel()`. The following example creates a minimal "messy" Excel file in a temporary location and demonstrates the parsing pipeline.
-
-```{r basic_example}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(TidyPanel)
-
-# Create a minimal example with financial multiplier notation
-tmp <- tempfile(fileext = ".xlsx")
-df_raw <- data.frame(
-  Category  = c("Revenue", "Cost"),
-  `FY2022`  = c("1.5M", "800k"),
-  `FY2023`  = c("2.0M", "950k"),
-  check.names = FALSE
-)
-writexl::write_xlsx(df_raw, tmp)
-
-# Parse and auto-pivot the wide table to long format
-result <- read_messy_panel(tmp, auto_pivot = TRUE)
-head(result)
-
-unlink(tmp)
 ```
 
-## Cleaning Variable Names
+The three bundled CSV files are fictional examples with three input rows each.
+They contain no personal records or development datasets.
 
-By default, TidyPanel standardizes variable names using the underlying `clean_variable_names()` engine. This function converts text to snake_case, removes special currency/percentage symbols, and maps common synonyms (like `gvkey` or `permno`) to standard terms (`id`).
+## Numbers
 
-```{r vars_example}
-# Demonstrate variable name standardization
-df_messy <- data.frame(
-  `GVKEY`            = c("001", "002"),
-  `Total Revenue ($)` = c(100, 200),
-  `My Custom Col!`   = c("A", "B"),
-  check.names = FALSE
-)
-
-df_clean <- clean_variable_names(df_messy)
-colnames(df_clean)
+```{r numbers}
+numbers <- read_messy_panel(system.file(
+  "extdata", "demo_01_numbers.csv", package = "TidyPanel", mustWork = TRUE
+))
+numbers
 ```
 
-## Advanced Features: Hierarchies and Audit Logs
+The record codes keep their leading zeros. The amount column becomes numeric,
+including a negative amount and a missing value.
 
-One of TidyPanel's unique features is its ability to understand structure. Financial tables often use indentation to group rows. TidyPanel extracts this structure and places it in a new column called `parent_category`.
+## Dates
 
-Additionally, data parsing should never be a "black box". TidyPanel allows you to generate an **Audit Log** that explicitly records every transformation applied to your data.
-
-```{r audit_example}
-# Create a table with a mid-table subtotal row (to be amputated)
-tmp2 <- tempfile(fileext = ".xlsx")
-df_with_subtotal <- data.frame(
-  Item    = c("Product A", "Product B", "Total", "Product C"),
-  Revenue = c("100", "200", "300", "150")
-)
-writexl::write_xlsx(df_with_subtotal, tmp2)
-
-# Parse with audit log enabled
-result <- read_messy_panel(tmp2, return_audit = TRUE)
-
-# View the cleaned data (Total row should be amputated)
-head(result$data)
-
-# View what the engine did
-print(result$audit)
-
-unlink(tmp2)
+```{r dates}
+dates <- read_messy_panel(system.file(
+  "extdata", "demo_02_dates.csv", package = "TidyPanel", mustWork = TRUE
+))
+dates
 ```
 
-**Example Audit Log Output:**
+The date column becomes a `Date` column. A missing reading stays missing.
 
-| Operation | Count |
-| :--- | :--- |
-| Mid-Table Subtotals Amputated | 1 |
+## Subtotals And Periods
 
-This table guarantees 100% transparency. You can save this log alongside your processed data to maintain a strict audit trail of how the messy raw data was restructured.
+```{r subtotals}
+panel <- read_messy_panel(
+  system.file(
+    "extdata", "demo_03_subtotals.csv", package = "TidyPanel", mustWork = TRUE
+  ),
+  auto_pivot = TRUE,
+  return_audit = TRUE
+)
+panel$data
+panel$audit
+```
+
+The total row is excluded and the two yearly columns become a long table.
+
+For your own table, supply its file path instead of a bundled example.

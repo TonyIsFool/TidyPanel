@@ -13,4 +13,9 @@
 ^\.github$
 ^customers_dna\.html$
 ^.*\.Rcheck$
-
+^tests$
+^testdata$
+^fixtures$
+^training(_data)?$
+^validation(_data)?$
+^source_samples$

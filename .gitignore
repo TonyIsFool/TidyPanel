@@ -11,3 +11,9 @@ data_clean/
 *.Rcheck
 customers_dna.html
 *.html
+tests/
+testdata/
+fixtures/
+training_data/
+validation_data/
+source_samples/

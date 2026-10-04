@@ -7,26 +7,32 @@
 read_messy_panel(
   file_path,
   sheet = NULL,
-  na_strings = c("", "NA", "#N/A", "NULL", "S", "D", "ND", "N/A", "*", "**", "***", ".",
-    "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR",
-    "--", "---", "n.a.", "N.A.", "n/a", "Not Applicable"),
+  na_strings = c("", ":", "NA", "#N/A", "NULL", "null", "S", "D", "ND", "N/A", "?", "*", "**",
+    "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?",
+    "none", "NR", "--", "---", "-999", "n.a.", "N.A.", "n/a", "Not Applicable", "\\\\N", "\u2026"),
   clean_vars = TRUE,
   auto_pivot = FALSE,
-  return_audit = FALSE
+  return_audit = FALSE,
+  extract_all_blocks = FALSE,
+  archive_member = NULL
 )
 }
 \arguments{
-\item{file_path}{Character string. Path to the Excel file.}
+\item{file_path}{Character string. A path to an Excel, CSV, TSV, TXT, RDB, ZIP, or gzip-compressed CSV, TSV, TXT, or RDB file.}
 
-\item{sheet}{Optional sheet name or index. If \code{NULL} (the default), it auto-discovers the first valid data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
+\item{sheet}{Optional sheet name or index. If \code{NULL} (the default), it selects the largest usable data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
 
-\item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons.}
+\item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 
 \item{clean_vars}{Logical. If \code{TRUE} (default), standardizes variable names to snake_case using \code{clean_variable_names()}.}
 
 \item{auto_pivot}{Logical. If \code{TRUE}, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (\code{time_period}, \code{value}).}
 
 \item{return_audit}{Logical. If \code{TRUE}, returns a list containing \verb{$data} (the cleaned data frame) and \verb{$audit} (a detailed log of all algorithmic modifications made).}
+
+\item{extract_all_blocks}{Logical. If \code{TRUE}, extracts all disjoint data tables on a sheet as a list of data frames. Default is \code{FALSE} (extracts only the largest block).}
+
+\item{archive_member}{Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.}
 }
 \value{
 If \code{return_audit = FALSE}, a cleaned and standardized \code{data.frame}.
@@ -38,21 +44,15 @@ If \code{return_audit = TRUE}, a named list containing:
 \code{read_messy_panel()} is an industrial-grade parser designed to extract clean, standardized data frames
 from heavily malformed, human-readable Excel reports (e.g., financial statements, ERP exports).
 It automatically bypasses decoy rows, stitches N-dimensional hierarchical headers, extracts structural
-indentation hierarchies (parent-child relationships), amputates embedded subtotals, and standardizes
-financial/scientific numbers.
+indentation hierarchies (parent-child relationships), reshapes series-oriented workbooks with
+metadata rows and a date axis, reads RDB plus gzip-compressed CSV, TSV, TXT, and RDB files, decodes UTF-16 BOM text plus CP932/Shift-JIS, CP949, Big5, Windows-1250, and Windows-1251 monthly text tables, rejects HTML responses disguised as CSV files, retains stable headerless daily records, detects official whitespace-delimited text tables, amputates embedded subtotals,
+and standardizes financial/scientific numbers.
 }
 \examples{
-# Toy example: create a small in-memory Excel file and parse it
-tmp <- tempfile(fileext = ".xlsx")
-df_raw <- data.frame(
-  Category = c("Revenue", "Cost", "Total"),
-  `2022` = c("1.2M", "800k", "2.0M"),
-  `2023` = c("1.5M", "900k", "2.4M"),
-  check.names = FALSE
+example_path <- system.file(
+  "extdata", "demo_01_numbers.csv", package = "TidyPanel", mustWork = TRUE
 )
-writexl::write_xlsx(df_raw, tmp)
-result <- read_messy_panel(tmp, auto_pivot = TRUE)
+result <- read_messy_panel(example_path)
 head(result)
-unlink(tmp)
 
 }

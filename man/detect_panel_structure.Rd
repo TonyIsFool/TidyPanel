@@ -23,6 +23,7 @@ A named list with the following elements:
 \item{\code{has_temporal_cols}}{Logical. Whether wide-format temporal columns (years, quarters) are detected.}
 \item{\code{n_aggregation_rows}}{Number of suspected Total/Sum aggregation rows found.}
 \item{\code{n_phantom_cols}}{Number of fully-empty ghost columns.}
+\item{\code{n_data_blocks}}{Total number of disjoint data panels found in the sheet.}
 \item{\code{recommended_call}}{A character string with a suggested \code{read_messy_panel()} call.}
 }
 }
@@ -34,17 +35,10 @@ and phantom columns. It also generates a recommended \code{read_messy_panel()} c
 based on the findings.
 }
 \examples{
-# Toy example: detect structure from a temporary Excel file
-tmp <- tempfile(fileext = ".xlsx")
-df <- data.frame(
-  Category = c("Total", "Revenue", "Cost"),
-  `FY2022` = c("3M", "2M", "1M"),
-  `FY2023` = c("4M", "2.5M", "1.5M"),
-  check.names = FALSE
+example_path <- system.file(
+  "extdata", "demo_03_subtotals.csv", package = "TidyPanel", mustWork = TRUE
 )
-writexl::write_xlsx(df, tmp)
-report <- detect_panel_structure(tmp, verbose = FALSE)
+report <- detect_panel_structure(example_path, verbose = FALSE)
 str(report)
-unlink(tmp)
 
 }

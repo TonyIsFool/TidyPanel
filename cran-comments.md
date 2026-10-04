@@ -1,21 +1,11 @@
-## Resubmission (v0.1.2)
+# Release (v0.2.100)
 
-This is a resubmission addressing feedback from CRAN reviewer Konstanze Lauseker:
+This release ships exactly three small fictional CSV demonstrations. Training
+data, validation datasets, regression fixtures, and development test sources
+are not included. Regression validation is performed separately before release.
 
-* Added academic references to the Description field of DESCRIPTION:
-  Wickham (2014) <doi:10.18637/jss.v059.i10> and
-  Wickham & Bryan (2023) <https://readxl.tidyverse.org>
+The examples demonstrate numeric cleaning, calendar dates, and subtotal removal
+with optional wide-to-long reshaping. No personal records are distributed.
 
-* Added executable code blocks to TidyPanel_introduction.Rmd using
-  tempfile() so all examples run without external files.
-
-* Replaced all \dontrun{} with executable toy examples that run in < 5
-  seconds using tempfile() and in-memory data frames. No \dontrun{}
-  remains in the package.
-
-## Test environments
-* local Windows 11 install, R 4.6.0
-
-## R CMD check results
-
-0 errors | 0 warnings | 0 notes
+Author and contact metadata use Tony Lu and xulunt123@gmail.com. Build metadata
+uses a neutral public identity, without a local account name or path.

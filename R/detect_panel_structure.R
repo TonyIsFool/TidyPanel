@@ -25,18 +25,11 @@
 #'   }
 #'
 #' @examples
-#' # Toy example: detect structure from a temporary Excel file
-#' tmp <- tempfile(fileext = ".xlsx")
-#' df <- data.frame(
-#'   Category = c("Total", "Revenue", "Cost"),
-#'   `FY2022` = c("3M", "2M", "1M"),
-#'   `FY2023` = c("4M", "2.5M", "1.5M"),
-#'   check.names = FALSE
+#' example_path <- system.file(
+#'   "extdata", "demo_03_subtotals.csv", package = "TidyPanel", mustWork = TRUE
 #' )
-#' writexl::write_xlsx(df, tmp)
-#' report <- detect_panel_structure(tmp, verbose = FALSE)
+#' report <- detect_panel_structure(example_path, verbose = FALSE)
 #' str(report)
-#' unlink(tmp)
 #'
 #' @export
 #' @importFrom readxl read_excel excel_sheets
@@ -44,9 +37,71 @@
 detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
     is_df <- is.data.frame(path)
     is_csv <- FALSE
+    is_delimited_text_path <- function(path) {
+        grepl("\\.(csv|tsv|txt)(\\.gz)?$", tolower(path)) || grepl("\\.zip$", tolower(path))
+    }
+    zip_delimited_member <- function(path) {
+        members <- utils::unzip(path, list = TRUE)$Name
+        candidates <- members[
+            !grepl("/$", members) &
+            grepl("\\.(csv|tsv|txt)$", tolower(members))
+        ]
+        if (length(candidates) == 0) {
+            stop("Zip archive does not contain a supported CSV, TSV, or TXT file.")
+        }
+        preferred <- candidates[
+            !grepl("metadata|readme|dictionary|codebook", basename(tolower(candidates)))
+        ]
+        if (length(preferred) > 0) preferred[1] else candidates[1]
+    }
+    open_text_connection <- function(path) {
+        if (grepl("\\.zip$", tolower(path))) {
+            unz(path, zip_delimited_member(path), open = "rt")
+        } else if (grepl("\\.gz$", tolower(path))) {
+            gzfile(path, open = "rt")
+        } else {
+            file(path, open = "rt")
+        }
+    }
+    text_file_sep <- function(path) {
+        member_path <- path
+        if (grepl("\\.zip$", tolower(path))) {
+            member_path <- zip_delimited_member(path)
+        }
+        if (grepl("\\.tsv(\\.gz)?$|\\.tsv$", tolower(member_path))) return("\t")
+
+        con <- open_text_connection(path)
+        on.exit(close(con), add = TRUE)
+        lines <- readLines(con, n = 10, warn = FALSE)
+        lines <- lines[nzchar(lines)]
+        if (length(lines) == 0) return(",")
+
+        candidates <- c("," = ",", ";" = ";", "\t" = "\t", "|" = "|")
+        counts <- vapply(candidates, function(sep) {
+            sum(vapply(gregexpr(sep, lines, fixed = TRUE), function(m) {
+                if (length(m) == 1 && m[1] == -1) 0L else length(m)
+            }, integer(1)))
+        }, integer(1))
+        if (max(counts) > 0) candidates[[which.max(counts)]] else ","
+    }
+    read_delimited_text <- function(path) {
+        con <- if (grepl("\\.zip$", tolower(path))) {
+            unz(path, zip_delimited_member(path), open = "rt")
+        } else if (grepl("\\.gz$", tolower(path))) {
+            gzfile(path, open = "rt")
+        } else {
+            path
+        }
+        if (inherits(con, "connection")) on.exit(close(con), add = TRUE)
+        read.csv(
+            con, header = FALSE, sep = text_file_sep(path), stringsAsFactors = FALSE,
+            na.strings = NULL, colClasses = "character", strip.white = FALSE,
+            fill = TRUE, blank.lines.skip = FALSE
+        )
+    }
     if (!is_df && is.character(path)) {
         if (!file.exists(path)) stop("File not found: ", path)
-        is_csv <- tolower(tools::file_ext(path)) %in% c("csv", "tsv", "txt")
+        is_csv <- is_delimited_text_path(path)
     }
 
     if (is_df) {
@@ -56,10 +111,8 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         }
         colnames(raw) <- NULL
     } else if (is_csv) {
-        ext <- tolower(tools::file_ext(path))
-        sep <- if (ext == "tsv") "\t" else ","
         raw <- suppressMessages(suppressWarnings(
-            read.csv(path, header = FALSE, sep = sep, stringsAsFactors = FALSE, na.strings = NULL, colClasses = "character", strip.white = FALSE, fill = TRUE, blank.lines.skip = FALSE)
+            read_delimited_text(path)
         ))
     } else {
         raw <- suppressMessages(suppressWarnings(
@@ -153,13 +206,36 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
     n_phantom_cols <- sum(col_density == 0)
 
     # ---- 6.5 Detect Number of Blocks ----
-    # Minimal logic mirroring read_messy_panel gap analysis
     is_numeric_like <- function(x) {
         if (is.na(x) || stringr::str_trim(x) == "") return(TRUE)
         if (grepl("(?i)^\\s*(week|wk|day|month|mo|visit|cycle|period|baseline|follow\\s*up|follow-up)\\s*[-_: ]*\\d+\\s*$", x, perl = TRUE)) return(FALSE)
         if (grepl("(?i)^\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\\.?\\s+\\d{1,2},?\\s+(19|20)\\d{2}\\s*$", x, perl = TRUE)) return(FALSE)
         if (grepl("^\\s*(?:\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}|\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4})\\s*$", x, perl = TRUE)) return(FALSE)
-        !is.na(suppressWarnings(as.numeric(stringr::str_remove_all(x, "[,%$]"))))
+        if (grepl("(?i)^\\s*(nil|none|n/a)\\s*$", x, perl = TRUE)) return(TRUE)
+        if (grepl("^[][(){}<> \t\r\n\u2010\u2011\u2012\u2013\u2014\u2015\u2212\\.-]+$", x) && grepl("[][(){}<>\u2010\u2011\u2012\u2013\u2014\u2015\u2212-]", x)) return(TRUE)
+        has_operator <- grepl("(?i)^\\s*(<|>|<=|>=|~|approx|p\\s*<|p\\s*>|p\\s*=)\\s*[+-]?[0-9\\.,]+\\s*$", x, perl=TRUE)
+        tuple_regex <- "(?i)^\\s*(?:\\(|\\[)\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z\\u4e00-\\u9fa5%]*))\\s*,\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z\\u4e00-\\u9fa5%]*))\\s*(?:\\)|\\])\\s*$"
+        if (stringr::str_detect(x, tuple_regex)) return(TRUE)
+        double_ineq_regex <- "(?i)^\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*(?:<|<=|≤|≥|>|>=)\\s*[A-Za-z_\\-]+\\s*(?:<|<=|≤|≥|>|>=)\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*$"
+        if (stringr::str_detect(x, double_ineq_regex)) return(TRUE)
+        explicit_bound_regex <- "(?i)^\\s*(?:min|minimum)\\s*:?\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\\u4e00-\\u9fa5%]+)?)\\s*(?:,|;)?\\s*(?:max|maximum)\\s*:?\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\\u4e00-\\u9fa5%]+)?)\\s*$"
+        if (stringr::str_detect(x, explicit_bound_regex)) return(TRUE)
+        range_regex <- "(?i)^\\s*(?!(?:19|20)\\d{2}[-/]\\d{1,2}$|^\\d{1,2}[-/](?:19|20)\\d{2}$)(?:(?:between\\s+|from\\s+|range\\s*:?\\s*))?([\\$€£¥\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)(?:\\s*(?:(?<![eE])-|~|to|and|&|–|—)\\s*|\\s+/\\s+|(?<=\\b(?:19|20)\\d{2})/(?=(?:19|20)\\d{2}\\b))([\\$€£¥\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)\\s*$"
+        if (stringr::str_detect(x, range_regex)) return(TRUE)
+        measurement_regex <- "(?i)^\\s*([+-]?[0-9\\.,]+)\\s+([a-zA-Z]+)\\s+([+-]?[0-9\\.,]+)\\s+([a-zA-Z]+)\\s*$"
+        if (stringr::str_detect(x, measurement_regex)) return(TRUE)
+        clean <- stringr::str_replace_all(x, "^\\s*[\\{\\[\\(<\\*\\s]+", "")
+        suffix_regex <- "\\s*(?:[A-Za-z\\u0400-\\u04FF\\u4e00-\\u9fa5\\.\\s]{1,25}|\\((?:[^()]+|\\([^()]*\\))*\\)|\\[(?:[^\\[\\]]+|\\[[^\\[\\]]*\\])*\\]|(?:(?<=[0-9A-Za-z\\.\\-\\%])\\s*(?:±|\\+/-|(?<![eE])\\s*(?:-|–|—|~|&)\\s*|\\s+(?:to|and)\\s+)\\s*[0-9,]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z%]+)?)|[-\\+\\u2010-\\u2015\\u2212])\\s*$"
+        clean <- stringr::str_replace_all(clean, suffix_regex, "")
+        clean <- stringr::str_replace_all(clean, suffix_regex, "")
+        if (grepl("^[-\\u2010\\u2011\\u2012\\u2013\\u2014\\u2015\\u2212\\.]+", stringr::str_trim(clean))) return(TRUE)
+        clean <- stringr::str_replace_all(clean, "(?<=\\d)\\s*([\\.,])\\s*(?=\\d)", "\\1")
+        clean <- stringr::str_replace_all(clean, "(?<=\\d)\\.{2,}(?=\\d)", ".")
+        clean <- stringr::str_replace_all(clean, "(?<=\\d),{2,}(?=\\d)", ",")
+        if (grepl("^\\s*(-?)\\s*(0|[1-9][0-9]*)[[:space:]-]+(0|[1-9][0-9]*)\\s*[/:]\\s*(0|[1-9][0-9]*)\\s*$", clean)) return(TRUE)
+        if (grepl("^\\s*(-?)\\s*(0|[1-9][0-9]*)\\s*(?:[/:]|[Ii][Nn]|[Oo][Uu][Tt]\\s*[Oo][Ff]|[Pp][Ee][Rr])\\s*(0|[1-9][0-9]*)\\s*$", clean)) return(TRUE)
+        clean <- stringr::str_replace_all(clean, "(?i)(?:\\s*[x\\*\\u00d7])?\\s*10\\s*(?:\\^|\\*\\*)\\s*([\\-\\+]?)\\s*([0-9]+)", "E\\1\\2")
+        !is.na(suppressWarnings(as.numeric(stringr::str_remove_all(clean, "[,%$]"))))
     }
     num_counts <- apply(mat, 1, function(row) {
         sum(vapply(row, is_numeric_like, logical(1)) & !is.na(row) & row != "")

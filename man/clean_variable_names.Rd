@@ -14,7 +14,8 @@ A \code{data.frame} with the same data but standardized column names.
 }
 \description{
 \code{clean_variable_names()} standardizes column names in a messy data frame. It converts all names
-to snake_case, strips special characters (except \verb{_}), translates Excel serial dates (e.g., \code{44197})
+to snake_case, normalizes Unicode numeric symbols, keeps percent, common parenthetical time units,
+categorical suffixes, and fiscal-year headers explicit, and strips other special characters (except \verb{_}), translates Excel serial dates (e.g., \code{44197})
 into ISO date strings (\code{2021-01-01}), and maps common financial/academic synonyms (e.g., \code{gvkey},
 \code{permno}, \code{cusip}) to standard names (\code{id}, \code{ticker}).
 }

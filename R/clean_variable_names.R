@@ -2,7 +2,9 @@
 #'
 #' @description
 #' `clean_variable_names()` standardizes column names in a messy data frame. It converts all names 
-#' to snake_case, normalizes Unicode numeric symbols, strips special characters (except `_`),
+#' to snake_case, normalizes Unicode numeric symbols, keeps percent and common
+#' parenthetical time units, categorical suffixes, and fiscal-year headers
+#' explicit, and strips other special characters (except `_`),
 #' translates Excel serial dates (e.g., `44197`)
 #' into ISO date strings (`2021-01-01`), and maps common financial/academic synonyms (e.g., `gvkey`, 
 #' `permno`, `cusip`) to standard names (`id`, `ticker`).
@@ -31,6 +33,43 @@
 #' @importFrom stringr str_remove_all str_trim str_to_lower
 clean_variable_names <- function(data) {
   clean_names <- stringr::str_trim(colnames(data))
+  percentage_units <- grepl("%", clean_names, fixed = TRUE)
+  fiscal_year_matches <- regmatches(
+    clean_names,
+    regexec(
+      "^(?:fy\\s*)?((?:19|20)[0-9]{2})\\s*[-/]\\s*((?:19|20)?[0-9]{2})$",
+      clean_names,
+      ignore.case = TRUE
+    )
+  )
+  fiscal_year_labels <- vapply(fiscal_year_matches, function(parts) {
+    if (length(parts) != 3L) {
+      return(NA_character_)
+    }
+    start_year <- as.integer(parts[[2L]])
+    end_text <- parts[[3L]]
+    end_year <- if (nchar(end_text) == 2L) {
+      candidate <- (start_year - (start_year %% 100L)) + as.integer(end_text)
+      if (candidate <= start_year) candidate + 100L else candidate
+    } else {
+      as.integer(end_text)
+    }
+    if (is.na(end_year) || end_year != start_year + 1L) {
+      return(NA_character_)
+    }
+    paste0("fy", start_year, "_", sprintf("%02d", end_year %% 100L))
+  }, character(1))
+  has_parenthetical_time_unit <- grepl(
+    "\\((days?|weeks?|months?|years?|hours?|minutes?|seconds?)\\)\\s*$",
+    clean_names,
+    ignore.case = TRUE
+  )
+  parenthetical_time_units <- stringr::str_to_lower(sub(
+    ".*\\((days?|weeks?|months?|years?|hours?|minutes?|seconds?)\\)\\s*$",
+    "\\1",
+    clean_names,
+    ignore.case = TRUE
+  ))
   clean_names <- normalize_unicode_numeric_symbols(clean_names)
   clean_names <- split_camel_case_names(clean_names)
   clean_names <- stringr::str_to_lower(clean_names)
@@ -39,6 +78,15 @@ clean_variable_names <- function(data) {
   is_excel_date <- grepl("^[345][0-9]{4}$", clean_names)
   if (any(is_excel_date)) {
       clean_names[is_excel_date] <- as.character(as.Date(as.numeric(clean_names[is_excel_date]), origin = "1899-12-30"))
+  }
+  
+  is_slash_date <- grepl("^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$", clean_names)
+  if (any(is_slash_date)) {
+      two_digit_year <- grepl("/[0-9]{2}$", clean_names[is_slash_date])
+      parsed_dates <- rep(as.Date(NA), sum(is_slash_date))
+      parsed_dates[two_digit_year] <- as.Date(clean_names[is_slash_date][two_digit_year], format = "%m/%d/%y")
+      parsed_dates[!two_digit_year] <- as.Date(clean_names[is_slash_date][!two_digit_year], format = "%m/%d/%Y")
+      clean_names[is_slash_date] <- as.character(parsed_dates)
   }
   
   dict <- c(
@@ -87,6 +135,7 @@ clean_variable_names <- function(data) {
     "g/l account" = "category",
     "destination" = "category",
     "state" = "state",
+    "status" = "status",
     "soc code" = "category",
     "\u7c7b\u522b" = "category",
     "kategorie" = "category",
@@ -114,6 +163,7 @@ clean_variable_names <- function(data) {
     "\u91d1\u989d" = "value",
     "betrag" = "value",
     "montant" = "value",
+    "valeur" = "value",
     "importe" = "value",
     
     "document no." = "ref",
@@ -127,7 +177,19 @@ clean_variable_names <- function(data) {
   regex_dict <- list(
       "revenue" = c("revenue", "sales", "turnover", "umsatz", "chiffre d'affaires", "ingresos"),
       "profit" = c("profit", "margin", "income", "gewinn", "b\u00e9n\u00e9fice", "beneficio"),
-      "cost" = c("cost", "expense", "cogs", "kosten", "d\u00e9pense", "gasto")
+      "cost" = c("cost", "expense", "cogs", "kosten", "d\u00e9pense", "gasto"),
+      "total_assets" = c("assets?", "verm\u00f6gen", "actifs?", "activos?"),
+      "total_liabilities" = c("liabilit(y|ies)", "verbindlichkeiten", "passifs?", "pasivos?"),
+      "equity" = c("equity", "eigenkapital", "capitaux propres", "patrimonio"),
+      "cash" = c("cash", "liquidity", "bargeld", "tr\u00e9sorerie", "efectivo"),
+      "headcount" = c("^headcount$", "^employees?$", "^mitarbeiter$", "^effectif$", "^empleados?$"),
+      "tax" = c("(^|[[:space:]_])tax(es)?($|[[:space:]_])", "steuer", "imp\u00f4t", "impuesto"),
+      "ebitda" = c("ebitda", "oibda")
+  )
+  
+  abbreviation_dict <- c(
+      "stname" = "state_name",
+      "ctyname" = "county_name"
   )
   
   for (i in seq_along(clean_names)) {
@@ -139,13 +201,22 @@ clean_variable_names <- function(data) {
     matched <- FALSE
     
     # 1. Exact Match
-    if (clean_names[i] %in% names(dict)) {
+    if (clean_names[i] %in% names(abbreviation_dict)) {
+      clean_names[i] <- abbreviation_dict[[clean_names[i]]]
+      matched <- TRUE
+    }
+    if (!matched && clean_names[i] %in% names(dict)) {
       clean_names[i] <- dict[[clean_names[i]]]
       matched <- TRUE
     }
     
-    # 2. Regex Fuzzy Match
-    if (!matched) {
+    # 2. Regex Fuzzy Match (skip generated measures and categorical dimensions)
+    is_generated_suffix <- grepl("_(currency|value|units|remarks)$", clean_names[i])
+    is_categorical_suffix <- grepl(
+      "(^|[[:space:]_])(type|category|class|classification|group|code|status|flag)$",
+      clean_names[i]
+    )
+    if (!matched && !is_generated_suffix && !is_categorical_suffix) {
       for (target in names(regex_dict)) {
         patterns <- regex_dict[[target]]
         if (any(vapply(patterns, function(p) grepl(p, clean_names[i], ignore.case = TRUE), logical(1)))) {
@@ -153,6 +224,16 @@ clean_variable_names <- function(data) {
             matched <- TRUE
             break
         }
+      }
+    }
+    # 2.3 Levenshtein Typo Tolerance (Phase 5)
+    if (!matched && !is_generated_suffix && nchar(clean_names[i]) > 5) {
+      all_targets <- unique(c(unname(dict), names(regex_dict)))
+      distances <- adist(clean_names[i], all_targets, ignore.case = TRUE)[1, ]
+      min_dist <- min(distances)
+      if (min_dist <= 2) {
+          clean_names[i] <- all_targets[which.min(distances)]
+          matched <- TRUE
       }
     }
     
@@ -163,7 +244,13 @@ clean_variable_names <- function(data) {
     
     # 3. Strict snake_case conversion for unmapped variables
     if (!matched) {
-        snaked <- stringr::str_replace_all(clean_names[i], "[^a-z0-9_]+", "_")
+        transliterated_name <- suppressWarnings(iconv(clean_names[i], to = "ASCII//TRANSLIT"))
+        name_for_snaking <- if (!is.na(transliterated_name) && !grepl("\\?\\?", transliterated_name)) {
+            transliterated_name
+        } else {
+            clean_names[i]
+        }
+        snaked <- stringr::str_replace_all(name_for_snaking, "[^a-z0-9_]+", "_")
         snaked <- stringr::str_replace_all(snaked, "_+", "_")
         snaked <- stringr::str_replace(snaked, "^_|_$", "")
         if (snaked != "") {
@@ -171,8 +258,25 @@ clean_variable_names <- function(data) {
         }
     }
   }
+
+  for (i in which(percentage_units)) {
+    if (!grepl("(^|_)(percent|percentage|pct)$", clean_names[i])) {
+      clean_names[i] <- paste0(clean_names[i], "_percent")
+    }
+  }
+
+  fiscal_year_columns <- which(!is.na(fiscal_year_labels))
+  if (length(fiscal_year_columns) > 0L) {
+    clean_names[fiscal_year_columns] <- fiscal_year_labels[fiscal_year_columns]
+  }
+
+  for (i in which(has_parenthetical_time_unit)) {
+    if (!grepl(paste0("(^|_)", parenthetical_time_units[i], "$"), clean_names[i])) {
+      clean_names[i] <- paste0(clean_names[i], "_", parenthetical_time_units[i])
+    }
+  }
   
-  colnames(data) <- clean_names
+  colnames(data) <- make.unique(clean_names, sep = "_")
   return(data)
 }
 

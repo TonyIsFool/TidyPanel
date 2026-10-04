@@ -1,58 +1,53 @@
 # TidyPanel
 
-<!-- badges: start -->
-<!-- badges: end -->
-
-**TidyPanel** extracts clean, standardized data frames from messy spreadsheet-like tables. This public submission copy uses synthetic examples only and does not include internal datasets, customer files, debug traces, or development notes.
+TidyPanel cleans spreadsheet-style tables from data frames, Excel, CSV, TSV,
+TXT, RDB, ZIP, and gzip-compressed tabular files. It standardizes column names
+and common numeric values, removes subtotal rows, infers types, and can return
+an audit table or reshape wide period columns.
 
 ## Installation
 
-You can install the development version of TidyPanel from GitHub with:
-
-``` r
-# install.packages("devtools")
-devtools::install_github("TonyIsFool/TidyPanel")
+```r
+install.packages("remotes")
+remotes::install_github("TonyIsFool/TidyPanel")
 ```
 
-## Why TidyPanel?
+## Three Small Examples
 
-Spreadsheet exports are rarely tidy. They may contain multi-line headers, decoy rows, empty ghost columns, embedded subtotals, and multiple tables on the same sheet.
+The package includes exactly three fictional CSV examples, each with three
+input rows. They contain no personal information and are not training,
+validation, or regression datasets.
 
-`TidyPanel` uses a multi-phase heuristic engine to:
-
-1. **Bypass Decoy Rows**: Skips irrelevant metadata at the top of the sheet.
-2. **Header Stitching**: Identifies multi-line headers and creates flat, readable column names.
-3. **Smart Cleanup**: Removes decorative breaks, subtotal rows, and ghost columns.
-4. **Auto Pivot**: Detects temporal columns such as Q1, 2021, or FY23 and pivots them into long format.
-5. **Semantic Cleaners**: Normalizes accounting dashes, percentages, currencies, and common numeric formats.
-
-## Synthetic Example
-
-The example below creates a temporary workbook with toy data, reads it, and returns an audit trail.
-
-``` r
+```r
 library(TidyPanel)
 
-tmp <- tempfile(fileext = ".xlsx")
-toy <- data.frame(
-  X1 = c("Demo Export", "Region", "North", "South", "Total"),
-  X2 = c("", "Sales", "100", "250", "350"),
-  stringsAsFactors = FALSE
+# Numbers, missing values, and leading-zero record codes
+numbers <- read_messy_panel(system.file(
+  "extdata", "demo_01_numbers.csv", package = "TidyPanel", mustWork = TRUE
+))
+numbers
+
+# Calendar dates and a missing reading
+dates <- read_messy_panel(system.file(
+  "extdata", "demo_02_dates.csv", package = "TidyPanel", mustWork = TRUE
+))
+dates
+
+# A total row and two yearly columns
+panel <- read_messy_panel(
+  system.file(
+    "extdata", "demo_03_subtotals.csv", package = "TidyPanel", mustWork = TRUE
+  ),
+  auto_pivot = TRUE,
+  return_audit = TRUE
 )
-writexl::write_xlsx(toy, tmp)
-
-result <- read_messy_panel(tmp, return_audit = TRUE)
-
-print(result$data)
-print(result$audit)
-
-unlink(tmp)
+panel$data
+panel$audit
 ```
+
+To clean your own file, pass its path to `read_messy_panel()`.
+The release does not include development datasets or regression fixtures.
 
 ## Contact
 
-Questions, feedback, and bug reports are welcome at xulunt123@gmail.com.
-
-## License
-
-MIT (c) TonyIsFool
+Tony Lu: xulunt123@gmail.com

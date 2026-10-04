@@ -13,7 +13,7 @@ infer_data_types(
 \arguments{
 \item{data}{A \code{data.frame}.}
 
-\item{na_strings}{A character vector of strings to be interpreted as \code{NA}.}
+\item{na_strings}{A character vector of strings to be interpreted as \code{NA}. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 
 \item{num_threshold}{Numeric between 0 and 1. The proportion of valid numbers required to convert a column to numeric. Default is \code{0.95}.}
 }
@@ -23,8 +23,9 @@ A \code{data.frame} with inferred data types.
 \description{
 \code{infer_data_types()} scans character columns in a data frame, identifies common
 financial placeholders for missing data (e.g., "-", "N/A", "n.m."), safely replaces
-them with \code{NA}, and then coerces the column to \code{numeric} or \code{Date} if a high
-percentage of the remaining values match those types.
+them with \code{NA}, retains identifier-like columns such as phone numbers as text, and
+then coerces the remaining columns to \code{numeric} or \code{Date} if a high percentage of
+their values match those types.
 }
 \examples{
 # Clean financial placeholders and coerce to numeric
