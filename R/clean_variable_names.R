@@ -8,6 +8,8 @@
 #' translates Excel serial dates (e.g., `44197`)
 #' into ISO date strings (`2021-01-01`), and maps common financial/academic synonyms (e.g., `gvkey`, 
 #' `permno`, `cusip`) to standard names (`id`, `ticker`).
+#' Explicit identifier suffixes are protected from approximate financial mappings.
+#' Qualified population income measures retain their meaning rather than becoming profit.
 #'
 #' @param data A `data.frame`. The data frame with messy column names.
 #' @return A `data.frame` with the same data but standardized column names.
@@ -216,7 +218,14 @@ clean_variable_names <- function(data) {
       "(^|[[:space:]_])(type|category|class|classification|group|code|status|flag)$",
       clean_names[i]
     )
-    if (!matched && !is_generated_suffix && !is_categorical_suffix) {
+    is_identifier_suffix <- grepl(
+      "(^|[[:space:]_-])(id|identifier|code|key|uuid|guid)$", clean_names[i]
+    )
+    is_population_income <- grepl(
+      "(^|[[:space:]_-])(income[[:space:]_-]+per[[:space:]_-]+(person|capita|household|worker|employee)|(per[[:space:]_-]+capita|household|personal|disposable|median)[[:space:]_-]+income)($|[[:space:]_-])",
+      clean_names[i]
+    )
+    if (!matched && !is_generated_suffix && !is_categorical_suffix && !is_identifier_suffix && !is_population_income) {
       for (target in names(regex_dict)) {
         patterns <- regex_dict[[target]]
         if (any(vapply(patterns, function(p) grepl(p, clean_names[i], ignore.case = TRUE), logical(1)))) {
@@ -227,12 +236,24 @@ clean_variable_names <- function(data) {
       }
     }
     # 2.3 Levenshtein Typo Tolerance (Phase 5)
-    if (!matched && !is_generated_suffix && nchar(clean_names[i]) > 5) {
+    if (!matched && !is_generated_suffix && !is_identifier_suffix && !is_population_income && nchar(clean_names[i]) > 5) {
       all_targets <- unique(c(unname(dict), names(regex_dict)))
       distances <- adist(clean_names[i], all_targets, ignore.case = TRUE)[1, ]
       min_dist <- min(distances)
-      if (min_dist <= 2) {
+      transposed <- vapply(all_targets, function(target) {
+          if (nchar(target) != nchar(clean_names[i])) return(FALSE)
+          observed <- strsplit(clean_names[i], "", fixed = TRUE)[[1L]]
+          expected <- strsplit(target, "", fixed = TRUE)[[1L]]
+          changed <- which(observed != expected)
+          length(changed) == 2L && diff(changed) == 1L &&
+              identical(observed[changed], rev(expected[changed]))
+      }, logical(1))
+      # Two arbitrary edits can turn valid measurements into unrelated labels.
+      if (min_dist <= 1) {
           clean_names[i] <- all_targets[which.min(distances)]
+          matched <- TRUE
+      } else if (any(transposed)) {
+          clean_names[i] <- all_targets[which(transposed)[[1L]]]
           matched <- TRUE
       }
     }

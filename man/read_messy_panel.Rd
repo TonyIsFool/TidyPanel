@@ -9,7 +9,7 @@ read_messy_panel(
   sheet = NULL,
   na_strings = c("", ":", "NA", "#N/A", "NULL", "null", "S", "D", "ND", "N/A", "?", "*", "**",
     "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?",
-    "none", "NR", "--", "---", "-999", "n.a.", "N.A.", "n/a", "Not Applicable", "\\\\N", "\u2026"),
+    "none", "NR", "--", "---", "-999", "n.a.", "N.A.", "n/a", "Not Applicable", "\\\\N", "\u2026", "NaN", "na"),
   clean_vars = TRUE,
   auto_pivot = FALSE,
   return_audit = FALSE,
@@ -22,7 +22,7 @@ read_messy_panel(
 
 \item{sheet}{Optional sheet name or index. If \code{NULL} (the default), it selects the largest usable data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
 
-\item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
+\item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. \code{NaN} is recognized in numeric contexts, not pure textual categories. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 
 \item{clean_vars}{Logical. If \code{TRUE} (default), standardizes variable names to snake_case using \code{clean_variable_names()}.}
 
@@ -47,6 +47,23 @@ It automatically bypasses decoy rows, stitches N-dimensional hierarchical header
 indentation hierarchies (parent-child relationships), reshapes series-oriented workbooks with
 metadata rows and a date axis, reads RDB plus gzip-compressed CSV, TSV, TXT, and RDB files, decodes UTF-16 BOM text plus CP932/Shift-JIS, CP949, Big5, Windows-1250, and Windows-1251 monthly text tables, rejects HTML responses disguised as CSV files, retains stable headerless daily records, detects official whitespace-delimited text tables, amputates embedded subtotals,
 and standardizes financial/scientific numbers.
+Stable categorical labels in headerless numeric tables are retained. Supply
+numeric report observation sections as plain tables rather than report metadata.
+Commented delimited headers retain labels and quoted field boundaries.
+Sampled averages with time and integer observation-count fields are retained.
+Supply delimited sources with metadata preambles as plain observation tables.
+Headerless whitespace records with quoted labels require CSV or a named data frame.
+Scientific unit descriptor rows require a separately prepared observation table.
+}
+\details{
+English day-month-year dates with hyphenated three-letter months are
+converted only when all observed values form valid calendar dates, independently
+of the time locale. Explicit identifier fields retain their text values.
+Missing explicit calendar values are not filled from neighboring records.
+Sparse country-year records and qualified physical total-energy measurements
+are retained rather than discarded as incomplete records or subtotal columns.
+Lowercase \code{na} becomes missing in numeric contexts, not pure text categories
+or recognized identifier fields. A custom \code{na_strings} can exclude this marker.
 }
 \examples{
 example_path <- system.file(

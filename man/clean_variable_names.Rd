@@ -18,6 +18,8 @@ to snake_case, normalizes Unicode numeric symbols, keeps percent, common parenth
 categorical suffixes, and fiscal-year headers explicit, and strips other special characters (except \verb{_}), translates Excel serial dates (e.g., \code{44197})
 into ISO date strings (\code{2021-01-01}), and maps common financial/academic synonyms (e.g., \code{gvkey},
 \code{permno}, \code{cusip}) to standard names (\code{id}, \code{ticker}).
+Explicit identifier suffixes are protected from approximate financial mappings.
+Qualified population income measures retain their meaning rather than becoming profit.
 }
 \examples{
 # Toy example: standardize column names in a data frame

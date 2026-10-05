@@ -23,7 +23,7 @@
 #' @importFrom stringr str_trim
 infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.m", "NA", "null", "NULL", "."), num_threshold = 0.95) {
     is_identifier_column <- function(name) {
-        normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", name))
+        normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", .separate_identifier_suffix(name)))
         grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|phone|telephone|mobile|fax)(_|$)", normalized_name)
     }
 
@@ -49,7 +49,9 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
             }
             col_data[is_na_string] <- NA
 
-            if (is_identifier_column(names(data)[i]) || is_leading_zero_code(col_data)) {
+            normalized_name <- tolower(gsub("^_|_$", "", gsub("[^A-Za-z0-9]+", "_", names(data)[i])))
+            is_flag_field <- grepl("(^|_)flags?$", normalized_name)
+            if (is_identifier_column(names(data)[i]) || is_leading_zero_code(col_data) || is_flag_field) {
                 data[[i]] <- col_data
                 next
             }
@@ -58,6 +60,12 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
             valid_elements <- col_data[!is.na(col_data) & col_data != ""]
             
             if (length(valid_elements) > 0) {
+                # Preserve censored readings and clocks rather than dropping their information.
+                if (any(tolower(valid_elements) == "trace") ||
+                    any(grepl("[0-9]{1,2}:[0-9]{2}", valid_elements))) {
+                    data[[i]] <- col_data
+                    next
+                }
                 # Test for numeric
                 num_vals <- suppressWarnings(as.numeric(valid_elements))
                 num_ratio <- sum(!is.na(num_vals)) / length(valid_elements)
@@ -67,7 +75,8 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
                     col_name <- names(data)[i]
                     if (!is.null(col_name) && grepl("date|period|time|year|month", col_name, ignore.case = TRUE)) {
                         # Excel dates between 1982 and 2064 fall in [30000, 60000]
-                        if (all(num_vals[!is.na(num_vals)] >= 30000 & num_vals[!is.na(num_vals)] <= 60000)) {
+                        if (all(num_vals[!is.na(num_vals)] >= 30000 & num_vals[!is.na(num_vals)] <= 60000) &&
+                            all(num_vals[!is.na(num_vals)] == trunc(num_vals[!is.na(num_vals)]))) {
                             col_data[col_data == ""] <- NA
                             data[[i]] <- as.Date(suppressWarnings(as.numeric(col_data)), origin = "1899-12-30")
                             next
@@ -81,10 +90,20 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
                 }
                 
                 # Advanced Multi-Format Date Inference
-                date_formats <- c("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y", "%d.%m.%Y", "%d%b%Y", "%d-%b-%Y", "%b %d, %Y")
+                date_patterns <- c(
+                    "%Y-%m-%d" = "^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$",
+                    "%Y/%m/%d" = "^[0-9]{4}/[0-9]{1,2}/[0-9]{1,2}$",
+                    "%m/%d/%Y" = "^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$",
+                    "%d/%m/%Y" = "^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$",
+                    "%d.%m.%Y" = "^[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{4}$",
+                    "%d%b%Y" = "^[0-9]{1,2}[A-Za-z]{3,9}[0-9]{4}$",
+                    "%d-%b-%Y" = "^[0-9]{1,2}-[A-Za-z]{3,9}-[0-9]{4}$",
+                    "%b %d, %Y" = "^[A-Za-z]{3,9} [0-9]{1,2}, [0-9]{4}$"
+                )
                 date_inferred <- FALSE
                 
-                for (fmt in date_formats) {
+                for (fmt in names(date_patterns)) {
+                    if (!all(grepl(date_patterns[[fmt]], valid_elements))) next
                     # as.Date can be slow if it fails on many strings, but valid_elements is usually small
                     date_vals <- suppressWarnings(as.Date(valid_elements, format = fmt))
                     if (sum(!is.na(date_vals)) / length(valid_elements) >= num_threshold) {
@@ -124,10 +143,12 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
         } else if (is.numeric(data[[i]])) {
             num_vals <- data[[i]]
             col_name <- names(data)[i]
-            if (!is.null(col_name) && grepl("date|period|time|year|month", col_name, ignore.case = TRUE)) {
+            if (!is.null(col_name) && !is_identifier_column(col_name) &&
+                grepl("date|period|time|year|month", col_name, ignore.case = TRUE)) {
                 valid_num <- num_vals[!is.na(num_vals)]
                 # Excel dates between 1982 and 2064 fall in [30000, 60000]
-                if (length(valid_num) > 0 && all(valid_num >= 30000 & valid_num <= 60000)) {
+                if (length(valid_num) > 0 && all(valid_num >= 30000 & valid_num <= 60000) &&
+                    all(valid_num == trunc(valid_num))) {
                     data[[i]] <- as.Date(num_vals, origin = "1899-12-30")
                 }
             }
@@ -135,6 +156,11 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
     }
     
     return(data)
+}
+
+# Preserve an explicit ID suffix before lowercasing destroys its boundary.
+.separate_identifier_suffix <- function(x) {
+    gsub("([a-z0-9])(ID|Id)(?=$|[^A-Za-z0-9])", "\\1_\\2", x, perl = TRUE)
 }
 
 # Two-letter ISO schemas give literal NA an unambiguous code meaning.

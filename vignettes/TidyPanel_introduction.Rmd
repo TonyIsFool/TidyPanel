@@ -1,8 +1,8 @@
 ---
-title: "Three Small TidyPanel Examples"
+title: "Ten Small TidyPanel Examples"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Three Small TidyPanel Examples}
+  %\VignetteIndexEntry{Ten Small TidyPanel Examples}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(TidyPanel)
 ```
 
-The three bundled CSV files are fictional examples with three input rows each.
+The ten bundled CSV files are fictional examples with three input rows each.
 They contain no personal records or development datasets.
 
 ## Numbers
@@ -53,5 +53,90 @@ panel$audit
 ```
 
 The total row is excluded and the two yearly columns become a long table.
+
+## Percentages
+
+```{r percentages}
+percentages <- read_messy_panel(
+  system.file("extdata", "demo_04_percentages.csv", package = "TidyPanel", mustWork = TRUE)
+)
+percentages
+```
+
+The rate values become proportions: 0.12, 0.075, and 0.
+
+
+## Currency
+
+```{r currency}
+currency <- read_messy_panel(
+  system.file("extdata", "demo_05_currency.csv", package = "TidyPanel", mustWork = TRUE)
+)
+currency
+```
+
+The amount values become 48.25, 16, and -7.5.
+
+
+## Leading-Zero Codes
+
+```{r codes}
+codes <- read_messy_panel(
+  system.file("extdata", "demo_06_codes.csv", package = "TidyPanel", mustWork = TRUE)
+)
+codes
+```
+
+Product and shelf codes retain their leading zeros. Quantities become numeric.
+
+
+## Whitespace
+
+```{r spaces}
+spaces <- read_messy_panel(
+  system.file("extdata", "demo_07_whitespace.csv", package = "TidyPanel", mustWork = TRUE)
+)
+spaces
+```
+
+Names and labels are trimmed. Numeric values retain their signs and zero.
+
+
+## Custom Missing Values
+
+```{r missing}
+missing <- read_messy_panel(
+  system.file("extdata", "demo_08_missing.csv", package = "TidyPanel", mustWork = TRUE),
+  na_strings = c("", "NA", "-777")
+)
+missing
+```
+
+Only the caller-selected -777 marker becomes missing. Zero remains a reading.
+
+
+## Repeated Records
+
+```{r repeated}
+repeated <- read_messy_panel(
+  system.file("extdata", "demo_09_repeated.csv", package = "TidyPanel", mustWork = TRUE)
+)
+repeated
+```
+
+Both Part A records remain present; cleaning does not automatically deduplicate.
+
+
+## Clocks And Quality Flags
+
+```{r clocks}
+clocks <- read_messy_panel(
+  system.file("extdata", "demo_10_clocks_flags.csv", package = "TidyPanel", mustWork = TRUE)
+)
+clocks
+```
+
+Clock text and literal T, F, and M flags are retained without guessing their meaning.
+
 
 For your own table, supply its file path instead of a bundled example.

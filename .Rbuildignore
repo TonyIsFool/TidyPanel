@@ -7,11 +7,9 @@
 ^CRAN-SUBMISSION$
 ^TidyPanel\.Rcheck$
 ^.*\.tar\.gz$
-^debug_script\.R$
-^fix_chinese\.R$
 ^dev_scripts$
 ^\.github$
-^customers_dna\.html$
+^.*\.html$
 ^.*\.Rcheck$
 ^tests$
 ^testdata$
