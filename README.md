@@ -43,6 +43,15 @@ Clock-bearing values and date suffixes remain text during type inference;
 fractional serial days are not reduced to dates. Explicit flag fields retain
 their literal tokens. Unit-qualified total rain, snow, and precipitation fields
 and their corresponding flags are retained as measurements.
+Slash-dated series exports require a separately prepared named observation
+table; unsupported metadata layouts fail clearly instead of merging labels.
+Mixed compact codes with zero-padded evidence stay text rather than losing
+letters or padding. Scientific notation and formatted decimal amounts retain
+numeric conversion. Unsupported name-first reference exports require a named
+table with an identifier column first.
+
+Large-table subtotal checks retain the existing row-selection rules while
+avoiding repeated per-record matching.
 
 ## Installation
 
@@ -57,12 +66,12 @@ R CMD INSTALL path/to/TidyPanel
 Alternatively, install a locally built source archive:
 
 ```r
-install.packages("TidyPanel_0.2.114.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.118.tar.gz", repos = NULL, type = "source")
 ```
 
-## Ten Small Examples
+## Three Small Examples
 
-The package includes exactly ten fictional CSV examples, each with three
+The package includes exactly three fictional CSV examples, each with three
 input rows. They contain no personal information and are not training,
 validation, or regression datasets.
 
@@ -71,13 +80,6 @@ validation, or regression datasets.
 | `demo_01_numbers.csv` | Grouped amounts, negatives, and missing values |
 | `demo_02_dates.csv` | Dates and a missing reading |
 | `demo_03_subtotals.csv` | A total row and wide yearly columns |
-| `demo_04_percentages.csv` | Percentages converted to proportions |
-| `demo_05_currency.csv` | Currency symbols and an accounting negative |
-| `demo_06_codes.csv` | Leading-zero product and shelf codes |
-| `demo_07_whitespace.csv` | Spaces in labels, names, and numeric cells |
-| `demo_08_missing.csv` | A caller-selected missing marker |
-| `demo_09_repeated.csv` | Repeated records retained in order |
-| `demo_10_clocks_flags.csv` | Literal clocks and quality flags |
 
 ```r
 library(TidyPanel)
@@ -107,17 +109,6 @@ panel$audit
 ```
 
 To clean your own file, pass its path to `read_messy_panel()`.
-The seven additional files use the same `system.file()` pattern. For the
-custom missing-marker example, explicitly select its demonstration marker:
-
-```r
-missing <- read_messy_panel(
-  system.file("extdata", "demo_08_missing.csv", package = "TidyPanel", mustWork = TRUE),
-  na_strings = c("", "NA", "-777")
-)
-missing
-```
-
 The release does not include development datasets or regression fixtures.
 
 ## Contact

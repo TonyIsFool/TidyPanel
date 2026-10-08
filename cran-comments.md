@@ -1,16 +1,24 @@
-# Release (v0.2.114)
+# Release (v0.2.118)
 
-This release includes reviewed baseline cleaning fixes and ten independently
+Mixed compact codes with zero-padded evidence retain their original text.
+Unsupported name-first reference exports require an identifier column first.
+Subtotal-label checks now avoid repeated per-record matching in large tables.
+Established row-selection rules are unchanged.
+
+Unsupported slash-dated series exports now require a separately prepared named
+observation table instead of merging metadata into column labels.
+
+This release includes reviewed baseline cleaning fixes and three independently
 invented demonstrations, each with three fictional input records. Examples
-cover numbers, dates, subtotal rows, percentages, currency, padded codes,
-whitespace, custom missing markers, repeated records, and literal clocks/flags.
-Validation is held separately. No development corpus is distributed.
+cover numbers, dates, and subtotal rows with optional wide-to-long reshaping.
+Additional aggregate-table regressions were added to the separate validation
+suite. No development corpus or validation material is distributed.
 
 Baseline fixes preserve clock precision, complete date lexemes, explicit
 identifier suffixes, literal quality flags, and unit-qualified precipitation
 totals. Fractional serial days are not silently reduced to dates.
 
-This release ships exactly ten small fictional CSV demonstrations. Training
+This release ships exactly three small fictional CSV demonstrations. Training
 data, validation datasets, regression fixtures, and development test sources
 are not included. Regression validation is performed separately before release.
 

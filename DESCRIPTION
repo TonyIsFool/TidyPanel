@@ -1,6 +1,6 @@
 Package: TidyPanel
 Title: Universal Messy Panel Data Cleaner
-Version: 0.2.114
+Version: 0.2.118
 Authors@R: person(given = "Tony", family = "Lu", email = "xulunt123@gmail.com", role = c("aut", "cre"))
 Author: Tony Lu [aut, cre]
 Maintainer: Tony Lu <xulunt123@gmail.com>

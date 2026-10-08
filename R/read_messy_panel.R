@@ -14,6 +14,7 @@
 #' Supply delimited sources with metadata preambles as plain observation tables.
 #' Headerless whitespace records with quoted labels require CSV or a named data frame.
 #' Scientific unit descriptor rows require a separately prepared observation table.
+#' Slash-dated series exports require a separately prepared named observation table.
 #'
 #' @param file_path Character string. A path to an Excel, CSV, TSV, TXT, RDB, ZIP, or gzip-compressed CSV, TSV, TXT, or RDB file.
 #' @details English day-month-year dates with hyphenated three-letter months are
@@ -429,6 +430,10 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
     first_column <- stringi::stri_trim_both(as.character(raw_mat[, 1]))
     normalized_labels <- tolower(gsub("[^A-Za-z0-9]+", "_", first_column))
     normalized_labels <- gsub("^_|_$", "", normalized_labels)
+    if (is_csv && all(c("title", "frequency", "series_id") %in% normalized_labels) &&
+        any(grepl("^[0-9]{2}/[0-9]{2}/[0-9]{4}$", first_column))) {
+      stop("Slash-dated series exports require a separately prepared named observation table.")
+    }
     series_id_rows <- which(normalized_labels == "series_id")
     if (length(series_id_rows) != 1L || series_id_rows >= nrow(raw_mat) - 1L) {
       return(NULL)
@@ -1096,6 +1101,11 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       if (nrow(raw_data) == 0) stop("Empty sheet")
       
       raw_mat <- as.matrix(raw_data)
+      if ((is_csv || is_df) && ncol(raw_mat) > 1L &&
+          tolower(trimws(as.character(raw_mat[1L, 1L]))) %in% c("libelle", "ncc", "nccenr") &&
+          "tncc" %in% tolower(trimws(as.character(raw_mat[1L, ])))) {
+          stop("Name-first reference tables are unsupported; provide a named table with an identifier column first.")
+      }
       if (is_csv && nrow(raw_mat) >= 3L) {
           descriptor_values <- tolower(stringi::stri_trim_both(as.character(raw_mat[2L, ])))
           if (sum(descriptor_values %in% c("degrees_north", "degrees_east", "kts", "mb", "km", "nmile", "second", "ft", "degrees")) >= 3L &&
@@ -2022,10 +2032,13 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
               first_col_lower
           )
       }
-      subtotal_idx <- total_rows | vapply(first_col_lower, function(val) {
-          if (is.na(val)) return(FALSE)
-          any(vapply(subtotal_keywords, function(k) grepl(k, val, fixed = TRUE), logical(1)))
-      }, logical(1))
+      subtotal_matches <- rep(FALSE, length(first_col_lower))
+      for (keyword in subtotal_keywords) {
+          subtotal_matches <- subtotal_matches |
+              (!is.na(first_col_lower) & grepl(keyword, first_col_lower, fixed = TRUE))
+      }
+      names(subtotal_matches) <- first_col_lower
+      subtotal_idx <- total_rows | subtotal_matches
       if (any(subtotal_idx)) {
           audit_log[["Mid-Table Subtotals Amputated"]] <- sum(subtotal_idx)
           df <- df[!subtotal_idx, , drop = FALSE]
@@ -2256,8 +2269,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
         values <- stringi::stri_trim_both(x[!is.na(x)])
         values <- values[values != ""]
         length(values) > 0 &&
-          all(grepl("^[0-9]+$", values)) &&
-          any(grepl("^0[0-9]+$", values))
+          all(grepl("^[0-9]+(?:[A-Za-z][A-Za-z0-9_-]*)?$", values, perl = TRUE)) &&
+          !any(grepl("^[0-9]+[eE][+-]?[0-9]+$", values)) &&
+          any(grepl("^0[0-9]+(?:[A-Za-z][A-Za-z0-9_-]*)?$", values, perl = TRUE))
       }
 
       is_alphanumeric_code <- function(x) {

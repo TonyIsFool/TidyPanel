@@ -54,6 +54,7 @@ Sampled averages with time and integer observation-count fields are retained.
 Supply delimited sources with metadata preambles as plain observation tables.
 Headerless whitespace records with quoted labels require CSV or a named data frame.
 Scientific unit descriptor rows require a separately prepared observation table.
+Slash-dated series exports require a separately prepared named observation table.
 }
 \details{
 English day-month-year dates with hyphenated three-letter months are
