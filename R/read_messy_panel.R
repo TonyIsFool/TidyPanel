@@ -9,12 +9,26 @@
 #' and standardizes financial/scientific numbers.
 #' Stable categorical labels in headerless numeric tables are retained. Supply
 #' numeric report observation sections as plain tables rather than report metadata.
-#' Commented delimited headers retain labels and quoted field boundaries.
+#' Commented delimited headers retain labels and quoted field boundaries. Explicit
+#' tab-delimited records take precedence over whitespace-table heuristics, retaining
+#' labels that contain spaces.
+#' Explicit named field/value tables retain all unique records and literal text,
+#' including hash characters and blank trailing values.
+#' Fields named exactly `site` retain literal identifiers; related measurement
+#' names such as `site_count` still receive ordinary numeric cleaning.
+#' Exact `ident` fields and `_ident` suffixes retain text and missing positions.
+#' Qualified `iso_country` fields retain literal `NA` with at least two distinct
+#' other uppercase two-letter codes. Coded reference catalogs require a prepared table.
 #' Sampled averages with time and integer observation-count fields are retained.
 #' Supply delimited sources with metadata preambles as plain observation tables.
 #' Headerless whitespace records with quoted labels require CSV or a named data frame.
 #' Scientific unit descriptor rows require a separately prepared observation table.
 #' Slash-dated series exports require a separately prepared named observation table.
+#' Sectioned observation exports require a separately prepared named table too.
+#' Prefaced measurement exports require a separately prepared named table.
+#' Prefaced monthly series exports also require a prepared named table.
+#' Qualified total-uncertainty measurements with finite original numeric evidence
+#' are retained; ordinary subtotal columns remain removable.
 #'
 #' @param file_path Character string. A path to an Excel, CSV, TSV, TXT, RDB, ZIP, or gzip-compressed CSV, TSV, TXT, or RDB file.
 #' @details English day-month-year dates with hyphenated three-letter months are
@@ -332,7 +346,8 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
     japanese_corporate_number <- intToUtf8(c(0x6CD5, 0x4EBA, 0x756A, 0x53F7))
     traditional_chinese_code <- intToUtf8(c(0x4EE3, 0x78BC))
     simplified_chinese_code <- intToUtf8(c(0x4EE3, 0x7801))
-    grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|regdep|lsoa|zip|zipcode|postal|postalcode|postcode|phone|telephone|mobile|fax)(_|$)", normalized_name) ||
+    identical(normalized_name, "site") ||
+      grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|regdep|lsoa|zip|zipcode|postal|postalcode|postcode|phone|telephone|mobile|fax)(_|$)|(^|_)ident$", normalized_name) ||
       grepl(japanese_corporate_number, name, fixed = TRUE) ||
       grepl(traditional_chinese_code, name, fixed = TRUE) ||
       grepl(simplified_chinese_code, name, fixed = TRUE)
@@ -413,6 +428,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       numeric_markers <- ambiguous_na_strings
       if (is_identifier_column(column_name)) {
         numeric_markers <- setdiff(numeric_markers, "na")
+      }
+      if (grepl("(^|_)ident$", tolower(gsub("[^A-Za-z0-9]+", "_", column_name)))) {
+        numeric_markers <- setdiff(numeric_markers, c("S", "D", "x", "c", "s", "z", "NR"))
       }
       missing <- missing | trimmed %in% numeric_markers
     }
@@ -785,6 +803,29 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           )) {
               stop("Input appears to be a JSON document rather than a delimited table.")
           }
+          if (length(sample_lines) > 0L && startsWith(sample_lines[[1L]], "AERONET Data Download")) {
+              stop("Prefaced measurement exports are not supported by the public edition. Provide a separately prepared named observation table.")
+          }
+          if (any(grepl("Scripps CO2 Program", head(sample_lines, 90L), fixed = TRUE)) &&
+              (any(grepl("^ *Yr, *Mn,", head(sample_lines, 90L))) ||
+                  any(grepl("24:00 hours on the 15th of each month", head(sample_lines, 90L), fixed = TRUE)))) {
+              stop("Prefaced monthly series exports are not supported by the public edition. Provide a separately prepared named observation table.")
+          }
+          section_next_header <- sample_lines[-1L]
+          section_next_header <- section_next_header[!startsWith(section_next_header, "#")][1L]
+          if (length(sample_lines) > 0L && grepl("^BOTTLE(?:,|$)", sample_lines[[1L]], perl = TRUE) &&
+              (grepl("^BOTTLE(?:,[0-9]{8}[ A-Z0-9_-]*)?$", sample_lines[[1L]], perl = TRUE) ||
+                  (!is.na(section_next_header) && grepl("^EXPOCODE(?:,|$)", section_next_header, perl = TRUE)))) {
+              stop("Sectioned observation exports are not supported by the public edition. Provide a separately prepared named observation table.")
+          }
+          if (length(sample_lines) >= 2L &&
+              grepl('^C,[^,]*,[^,]*,AEMO,PUBLIC,', sample_lines[[1L]]) &&
+              grepl('^I,', sample_lines[[2L]])) {
+              stop(
+                  'Sectioned control-record reports are not supported by the public edition. ',
+                  'Provide a separately prepared named observation table.'
+              )
+          }
           explicit_table_lines <- NULL
           quoted_numeric_token <- "(?:[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?|NA|\\?)"
           quoted_record_pattern <- paste0("^\\s*", quoted_numeric_token,
@@ -875,8 +916,15 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
                   "Convert it to CSV or provide a field schema before cleaning."
               )
           }
-          has_tabular_tabs <- length(non_blank_lines) > 0 &&
-              mean(vapply(non_blank_lines, function(line) grepl("\t", line, fixed = TRUE), logical(1))) >= 0.5
+          tab_width_connection <- textConnection(non_blank_lines, open = "r")
+          tab_record_widths <- tryCatch(suppressWarnings(utils::count.fields(
+              tab_width_connection, sep = "\t", quote = "\"", comment.char = "",
+              blank.lines.skip = FALSE
+          )), error = function(e) integer(0), finally = close(tab_width_connection))
+          tabular_widths <- tab_record_widths[tab_record_widths > 1L]
+          has_tabular_tabs <- length(tab_record_widths) >= 2L &&
+              mean(tab_record_widths > 1L) >= 0.75 &&
+              length(unique(tabular_widths)) == 1L
           whitespace_header_index <- NA_integer_
           commented_whitespace_header_fields <- NULL
           whitespace_fields <- list()
@@ -943,9 +991,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
                   )
               }
           }
-          is_whitespace_delimited <-
-              !is.na(whitespace_header_index) ||
-              !is.null(commented_whitespace_header_fields)
+          is_whitespace_delimited <- !has_tabular_tabs &&
+              (!is.na(whitespace_header_index) ||
+               !is.null(commented_whitespace_header_fields))
           sep <- if (ext == "tsv" && has_tabular_tabs) {
               "\t"
           } else if (max(delimiter_scores) > 0L) {
@@ -1043,7 +1091,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
                       quote = "\"",
                       skip = skip_lines,
                       blank.lines.skip = FALSE,
-                      comment.char = if (commented_header) "" else "#"
+                      comment.char = ""
                   ),
                   finally = close(count_connection)
               )
@@ -1060,7 +1108,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
                   strip.white = FALSE,
                   blank.lines.skip = FALSE,
                   skip = skip_lines,
-                  comment.char = if (commented_header) "" else "#",
+                  comment.char = "",
                   quote = "\"",
                   fill = TRUE,
                   col.names = paste0("V", seq_len(max_fields))
@@ -1101,6 +1149,18 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       if (nrow(raw_data) == 0) stop("Empty sheet")
       
       raw_mat <- as.matrix(raw_data)
+      registry_labels <- as.character(raw_mat[1L, ])
+      if ((is_csv || is_df) && all(c("code", "continent") %in% registry_labels) &&
+          any(c("wikipedia_link", "keywords") %in% registry_labels)) {
+          stop("Coded reference catalogs are not supported by the public edition. Provide a separately prepared named observation table.")
+      }
+      named_field_value_table <- (is_csv || is_df) && nrow(raw_mat) >= 4L &&
+          ncol(raw_mat) == 2L &&
+          identical(tolower(stringi::stri_trim_both(as.character(raw_mat[1L, ]))),
+              c("field", "value")) &&
+          all(!is.na(raw_mat[-1L, 1L]) &
+              stringi::stri_trim_both(as.character(raw_mat[-1L, 1L])) != "") &&
+          !anyDuplicated(stringi::stri_trim_both(as.character(raw_mat[-1L, 1L])))
       if ((is_csv || is_df) && ncol(raw_mat) > 1L &&
           tolower(trimws(as.character(raw_mat[1L, 1L]))) %in% c("libelle", "ncc", "nccenr") &&
           "tncc" %in% tolower(trimws(as.character(raw_mat[1L, ])))) {
@@ -1204,6 +1264,10 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       )
       valid_cells <- !is.na(raw_mat) & raw_mat != ""
       num_counts <- rowSums(numeric_like_mat & valid_cells)
+      if (named_field_value_table) {
+          num_counts[-1L] <- pmax(1L, num_counts[-1L])
+          input_audit[["Named Field-Value Records Preserved"]] <- nrow(raw_mat) - 1L
+      }
 
       # Ordinal percentile labels can look numeric after annotation cleanup.
       ordinal_header_cells <- matrix(
@@ -1242,9 +1306,10 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           "(^|_)(date|time|datetime|timestamp|period)(_|$)",
           tolower(gsub("[^A-Za-z0-9]+", "_", first_column_values[1L]))
       )
-      first_header_is_identifier <- first_column_non_empty[1L] && grepl(
-          "(^|_)(id|identifier|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|regdep|lsoa)(_|$)",
+      first_header_is_identifier <- first_column_non_empty[1L] && (identical(tolower(first_column_values[1L]), "site") || grepl(
+          "(^|_)(id|identifier|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|regdep|lsoa)(_|$)|(^|_)ident$",
           tolower(gsub("[^A-Za-z0-9]+", "_", first_column_values[1L]))
+      )
       )
       temporal_axis_in_input <- sum(temporal_record_rows) >= 3L && (
           first_header_is_temporal ||
@@ -1765,7 +1830,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       }
       identifier_headers <- vapply(headers, function(name) {
           normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", .separate_identifier_suffix(name)))
-          grepl("(^|_)(id|identifier|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|country|sumlev|region|division|regdep|lsoa)(_|$)", normalized_name)
+          identical(normalized_name, "site") || grepl("(^|_)(id|identifier|code|key|uuid|guid|dguid|unitid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|country|sumlev|region|division|regdep|lsoa)(_|$)|(^|_)ident$", normalized_name)
       }, logical(1))
       sparse_identifier_rows <- rep(FALSE, nrow(data_block))
       if (any(identifier_headers)) {
@@ -1985,7 +2050,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       
       # Phase 6: Forward-fill leading character columns (Staircase Ledgers)
       # Delimited records encode blank values directly; only worksheet cells can be merged.
-      if (!is_csv) {
+      if (!is_csv && !named_field_value_table) {
       for (c in 1:min(2, ncol(df))) {
           col_vals <- as.character(df[[c]])
           valid_vals <- col_vals[!is.na(col_vals) & stringi::stri_trim_both(col_vals) != ""]
@@ -2005,7 +2070,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           )
           if (length(valid_vals) > 0) {
               num_count <- sum(is_numeric_like_vector(valid_vals))
-              if (!is_descriptive_text_column && !is_explicit_calendar_field(column_label) &&
+              protected_registry_alias <- grepl("(^|_)ident$", normalized_col_name) ||
+                  (normalized_col_name == "iso_country" && .is_iso_alpha2_field(col_vals, column_label, na_strings))
+              if (!is_descriptive_text_column && !is_explicit_calendar_field(column_label) && !protected_registry_alias &&
                   num_count < length(valid_vals) * 0.5) {
                   filled_col <- col_vals
                   last_val <- NA
@@ -2039,6 +2106,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       }
       names(subtotal_matches) <- first_col_lower
       subtotal_idx <- total_rows | subtotal_matches
+      if (named_field_value_table) subtotal_idx[] <- FALSE
       if (any(subtotal_idx)) {
           audit_log[["Mid-Table Subtotals Amputated"]] <- sum(subtotal_idx)
           df <- df[!subtotal_idx, , drop = FALSE]
@@ -2049,7 +2117,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       # Phase 6: Footnote Amputator (Trailing long-string rows)
       tail_n <- min(5, nrow(df))
       footnotes_dropped <- 0
-      if (tail_n > 0) {
+      if (tail_n > 0 && !named_field_value_table) {
           rows_to_keep <- rep(TRUE, nrow(df))
           for (r in seq(nrow(df) - tail_n + 1, nrow(df))) {
               val1 <- as.character(df[r, 1])
@@ -2080,7 +2148,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       
       # Phase 4: Amputate Trailing Aggregation Rows (Ghost Bottoms)
       tail_n <- min(5, nrow(df))
-      if (tail_n > 0) {
+      if (tail_n > 0 && !named_field_value_table) {
           agg_keywords <- c("grand total", "total", "sum", "average", "avg", "\u5408\u8ba1", "\u603b\u8ba1", "\u5e73\u5747", "mean", "gesamt", "summe", "durchschnitt", "moyenne", "somme", "promedio")
           is_aggregation_row <- function(value) {
               !is.na(value) && any(vapply(
@@ -2186,7 +2254,18 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
         )
         is_precipitation_flag <- grepl("^total_(rain|snow|precip|precipitation)_flag$", normalized_col_name) &&
             any(grepl(paste0("^", sub("_flag$", "", normalized_col_name), "_(mm|cm|in|inch|inches)$"), normalized_headers))
-        is_aggregation_column <- !is_baseline_measure &&
+        is_uncertainty_measurement <- grepl("^total_uncertainty(?:_[1-9][0-9]*_sigma)?$",
+            normalized_col_name, perl = TRUE)
+        if (is_uncertainty_measurement) {
+            uncertainty_values <- stringi::stri_trim_both(as.character(df[[c]]))
+            uncertainty_observed <- uncertainty_values[!is.na(uncertainty_values) &
+                uncertainty_values != "" & !(uncertainty_values %in% na_strings)]
+            is_uncertainty_measurement <- length(uncertainty_observed) >= 2L &&
+                all(grepl("^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$",
+                    uncertainty_observed, perl = TRUE)) &&
+                all(is.finite(suppressWarnings(as.numeric(uncertainty_observed))))
+        }
+        is_aggregation_column <- !is_baseline_measure && !is_uncertainty_measurement &&
               !is_energy_measurement &&
               !is_precipitation_measurement && !is_precipitation_flag &&
               !is_paired_measurement &&
@@ -2217,7 +2296,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       # (section_category assigned earlier)
       
       # Forward-fill NAs in leading character columns (Handling Merged Cells)
-      if (!is_csv) {
+      if (!is_csv && !named_field_value_table) {
       for (j in seq_len(ncol(df))) {
           col_vals <- df[[j]]
           valid_idx <- which(!is.na(col_vals) & col_vals != "")
@@ -2232,7 +2311,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
             normalized_col_name
           )
 
-          if (is_descriptive_text_column || is_explicit_calendar_field(colnames(df)[j])) {
+          if (is_descriptive_text_column || is_explicit_calendar_field(colnames(df)[j]) ||
+              grepl("(^|_)ident$", normalized_col_name) ||
+              (normalized_col_name == "iso_country" && .is_iso_alpha2_field(as.character(col_vals), colnames(df)[j], na_strings))) {
             next
           }
           if (valid_count == 0) {
@@ -2260,6 +2341,11 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       }
       df[] <- lapply(seq_along(df), function(i) {
         x <- df[[i]]
+        if (named_field_value_table) {
+            literal <- stringi::stri_trim_both(as.character(x))
+            literal[is.na(literal) | literal == ""] <- NA_character_
+            return(literal)
+        }
         missing <- is_missing_marker(x, colnames(df)[i])
         x[missing] <- NA
         x
@@ -2292,6 +2378,7 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           tolower(gsub("[^A-Za-z0-9]+", "_", column_name))
         }
         date_values <- stringi::stri_trim_both(x)
+        if (named_field_value_table) return(date_values)
         is_date_column <-
             normalized_column_name == "time_period" ||
             is_explicit_calendar_field(column_name)

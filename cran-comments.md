@@ -1,4 +1,12 @@
-# Release (v0.2.118)
+# Release (v0.2.127)
+
+Explicit TAB records retain labels containing spaces. Named two-column
+field/value tables preserve every unique record, blank trailing values and
+literal hash characters. Site and ident fields retain their identifier text;
+qualified iso_country fields preserve literal NA code values. Qualified numeric
+total-uncertainty fields are retained instead of removed as subtotal columns.
+Unsupported sectioned and prefaced exports require a separately prepared named
+observation table. Public documentation reflects these baseline behaviors.
 
 Mixed compact codes with zero-padded evidence retain their original text.
 Unsupported name-first reference exports require an identifier column first.

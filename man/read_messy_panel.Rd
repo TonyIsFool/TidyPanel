@@ -49,12 +49,27 @@ metadata rows and a date axis, reads RDB plus gzip-compressed CSV, TSV, TXT, and
 and standardizes financial/scientific numbers.
 Stable categorical labels in headerless numeric tables are retained. Supply
 numeric report observation sections as plain tables rather than report metadata.
-Commented delimited headers retain labels and quoted field boundaries.
+Commented delimited headers retain labels and quoted field boundaries. Explicit
+tab-delimited records take precedence over whitespace-table heuristics, retaining
+labels that contain spaces.
+Explicit named \code{field,value} tables retain all unique records and literal text,
+including hash characters and blank trailing values.
+Fields named exactly \code{site} retain literal identifiers; related measurement
+names such as \code{site_count} still receive ordinary numeric cleaning.
+Exact \code{ident} fields and \code{_ident} suffixes retain text and missing positions.
+Qualified \code{iso_country} fields retain literal \code{NA} with at least two distinct
+other uppercase two-letter codes. Coded reference catalogs require a prepared table.
 Sampled averages with time and integer observation-count fields are retained.
 Supply delimited sources with metadata preambles as plain observation tables.
 Headerless whitespace records with quoted labels require CSV or a named data frame.
 Scientific unit descriptor rows require a separately prepared observation table.
 Slash-dated series exports require a separately prepared named observation table.
+Sectioned control-record reports require a separately prepared named observation table.
+Sectioned observation exports require a separately prepared named table too.
+Prefaced measurement exports require a separately prepared named table.
+Prefaced monthly series exports also require a prepared named table.
+Qualified total-uncertainty measurements with finite original numeric evidence
+are retained; ordinary subtotal columns remain removable.
 }
 \details{
 English day-month-year dates with hyphenated three-letter months are

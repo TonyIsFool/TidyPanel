@@ -6,6 +6,9 @@
 #' them with `NA`, retains identifier-like columns such as phone numbers as text, and
 #' then coerces the remaining columns to `numeric` or `Date` if a high percentage of
 #' their values match those types.
+#' Exact `ident` fields and `_ident` suffixes retain text. The exact normalized
+#' `iso_country` alias needs two distinct other uppercase two-letter observations
+#' to protect literal `NA`; labels and contaminated profiles keep baseline behavior.
 #' 
 #' @param data A `data.frame`.
 #' @param na_strings A character vector of strings to be interpreted as `NA`. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
@@ -24,7 +27,7 @@
 infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.m", "NA", "null", "NULL", "."), num_threshold = 0.95) {
     is_identifier_column <- function(name) {
         normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", .separate_identifier_suffix(name)))
-        grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|phone|telephone|mobile|fax)(_|$)", normalized_name)
+        grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|phone|telephone|mobile|fax)(_|$)|(^|_)ident$", normalized_name)
     }
 
     is_leading_zero_code <- function(x) {
@@ -171,11 +174,13 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
         "(^|_)(iso(?:_?3166(?:_?1)?)?_?(?:alpha_?2|a2|2)|alpha_?2)(_|$)",
         normalized_name, perl = TRUE
     )
-    if (!code_header) return(FALSE)
+    country_alias <- identical(normalized_name, "iso_country")
+    if (!code_header && !country_alias) return(FALSE)
 
     placeholders <- tolower(values) %in% tolower(na_strings) |
         grepl("^\\((NA|N/A|NULL|ND)\\)$", values, ignore.case = TRUE) |
         grepl("^\\*+$|^:\\s*(?:@[A-Za-z0-9_]+|[A-Za-z][A-Za-z0-9_]*)?\\s*$", values, perl = TRUE)
     evidence <- values[!is.na(values) & values != "" & !placeholders]
-    all(grepl("^[A-Z]{2}$", evidence))
+    valid <- all(grepl("^[A-Z]{2}$", evidence))
+    valid && (code_header || length(unique(evidence)) >= 2L)
 }

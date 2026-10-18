@@ -10,7 +10,22 @@ measurements are retained. For numeric text reports, provide the observation
 section as a plain table or data frame rather than including report metadata.
 Commented delimited headers retain their labels, including whitespace after
 the comment marker and quoted separators in field names or records.
+Explicit TAB records remain tab-delimited when labels contain spaces.
+Explicit two-column `field,value` tables retain every uniquely named record,
+including blank trailing values and long text. Hash characters inside delimited
+fields are treated as data rather than silently truncating the field.
 Explicit identifier suffixes remain distinct from financial measurement labels.
+Fields named exactly `site` preserve literal identifiers, including leading zeros.
+Fields named `ident` or ending in `_ident` retain text codes without filling
+missing positions. A qualified `iso_country` column retains literal `NA` only
+with at least two distinct other uppercase two-letter code observations.
+Coded reference catalogs require a separately prepared named observation table.
+Sectioned observation exports must be supplied as separately prepared named tables.
+Prefaced measurement exports require a separately prepared named observation table.
+Prefaced monthly series exports require a separately prepared named observation table.
+Qualified numeric total-uncertainty measurements are retained, while ordinary
+subtotal columns remain removable.
+Related measurement fields such as `site_count` remain eligible for numeric cleaning.
 Sampled averages retain their values when time and integer observation-count
 fields establish a measurement context. Sources with delimited metadata
 preambles must be supplied as plain observation tables.
@@ -49,6 +64,8 @@ Mixed compact codes with zero-padded evidence stay text rather than losing
 letters or padding. Scientific notation and formatted decimal amounts retain
 numeric conversion. Unsupported name-first reference exports require a named
 table with an identifier column first.
+Sectioned control-record reports require a separately prepared named
+observation table; the simplified public reader does not combine their sections.
 
 Large-table subtotal checks retain the existing row-selection rules while
 avoiding repeated per-record matching.
@@ -66,7 +83,7 @@ R CMD INSTALL path/to/TidyPanel
 Alternatively, install a locally built source archive:
 
 ```r
-install.packages("TidyPanel_0.2.118.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.127.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Three Small Examples
