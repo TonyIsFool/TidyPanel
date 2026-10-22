@@ -238,7 +238,7 @@ clean_variable_names <- function(data) {
     # 2.3 Levenshtein Typo Tolerance (Phase 5)
     if (!matched && !is_generated_suffix && !is_identifier_suffix && !is_population_income && nchar(clean_names[i]) > 5) {
       all_targets <- unique(c(unname(dict), names(regex_dict)))
-      distances <- adist(clean_names[i], all_targets, ignore.case = TRUE)[1, ]
+      distances <- utils::adist(clean_names[i], all_targets, ignore.case = TRUE)[1, ]
       min_dist <- min(distances)
       transposed <- vapply(all_targets, function(target) {
           if (nchar(target) != nchar(clean_names[i])) return(FALSE)

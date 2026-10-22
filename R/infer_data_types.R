@@ -120,8 +120,8 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
                 if (date_inferred) next
                 
                 # Phase 5: Logical/Boolean Coercion
-                bool_true_strs <- c("true", "t", "yes", "y", "1", "是")
-                bool_false_strs <- c("false", "f", "no", "n", "0", "否")
+                bool_true_strs <- c("true", "t", "yes", "y", "1", "\u662f")
+                bool_false_strs <- c("false", "f", "no", "n", "0", "\u5426")
                 
                 lower_elements <- tolower(valid_elements)
                 is_bool <- lower_elements %in% c(bool_true_strs, bool_false_strs)

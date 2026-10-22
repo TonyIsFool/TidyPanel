@@ -1,4 +1,9 @@
-# Release (v0.2.127)
+# Release (v0.2.128)
+
+Column-name matching now explicitly qualifies its standard-library distance
+function, including in minimal R sessions. Unicode source literals use portable
+escapes without changing their values. The source build includes the compiled
+guide for the same three fictional examples. No new datasets are included.
 
 Explicit TAB records retain labels containing spaces. Named two-column
 field/value tables preserve every unique record, blank trailing values and

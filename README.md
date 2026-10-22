@@ -83,7 +83,13 @@ R CMD INSTALL path/to/TidyPanel
 Alternatively, install a locally built source archive:
 
 ```r
-install.packages("TidyPanel_0.2.127.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.128.tar.gz", repos = NULL, type = "source")
+```
+
+The built source archive includes the three-example guide:
+
+```r
+vignette("TidyPanel_introduction", package = "TidyPanel")
 ```
 
 ## Three Small Examples

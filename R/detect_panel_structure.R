@@ -216,16 +216,16 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         has_operator <- grepl("(?i)^\\s*(<|>|<=|>=|~|approx|p\\s*<|p\\s*>|p\\s*=)\\s*[+-]?[0-9\\.,]+\\s*$", x, perl=TRUE)
         tuple_regex <- "(?i)^\\s*(?:\\(|\\[)\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z\\u4e00-\\u9fa5%]*))\\s*,\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z\\u4e00-\\u9fa5%]*))\\s*(?:\\)|\\])\\s*$"
         if (stringr::str_detect(x, tuple_regex)) return(TRUE)
-        double_ineq_regex <- "(?i)^\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*(?:<|<=|≤|≥|>|>=)\\s*[A-Za-z_\\-]+\\s*(?:<|<=|≤|≥|>|>=)\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*$"
+        double_ineq_regex <- "(?i)^\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*(?:<|<=|\u2264|\u2265|>|>=)\\s*[A-Za-z_\\-]+\\s*(?:<|<=|\u2264|\u2265|>|>=)\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*[a-zA-Z\\u4e00-\\u9fa5%\\/\\.]+)?)\\s*$"
         if (stringr::str_detect(x, double_ineq_regex)) return(TRUE)
         explicit_bound_regex <- "(?i)^\\s*(?:min|minimum)\\s*:?\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\\u4e00-\\u9fa5%]+)?)\\s*(?:,|;)?\\s*(?:max|maximum)\\s*:?\\s*([+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\\u4e00-\\u9fa5%]+)?)\\s*$"
         if (stringr::str_detect(x, explicit_bound_regex)) return(TRUE)
-        range_regex <- "(?i)^\\s*(?!(?:19|20)\\d{2}[-/]\\d{1,2}$|^\\d{1,2}[-/](?:19|20)\\d{2}$)(?:(?:between\\s+|from\\s+|range\\s*:?\\s*))?([\\$€£¥\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)(?:\\s*(?:(?<![eE])-|~|to|and|&|–|—)\\s*|\\s+/\\s+|(?<=\\b(?:19|20)\\d{2})/(?=(?:19|20)\\d{2}\\b))([\\$€£¥\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)\\s*$"
+        range_regex <- "(?i)^\\s*(?!(?:19|20)\\d{2}[-/]\\d{1,2}$|^\\d{1,2}[-/](?:19|20)\\d{2}$)(?:(?:between\\s+|from\\s+|range\\s*:?\\s*))?([\\$\u20ac\u00a3\u00a5\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)(?:\\s*(?:(?<![eE])-|~|to|and|&|\u2013|\u2014)\\s*|\\s+/\\s+|(?<=\\b(?:19|20)\\d{2})/(?=(?:19|20)\\d{2}\\b))([\\$\u20ac\u00a3\u00a5\u20b9\u20a9\u20aa\u20ab\u0e3f\u20b1\u20bd\u20ba]?\\s*[+-]?[0-9\\.,]+(?:[eE][+-]?[0-9]+)?(?:\\s*(?!(?:to|and)\\b)[a-zA-Z\u4e00-\u9fa5%]+)?)\\s*$"
         if (stringr::str_detect(x, range_regex)) return(TRUE)
         measurement_regex <- "(?i)^\\s*([+-]?[0-9\\.,]+)\\s+([a-zA-Z]+)\\s+([+-]?[0-9\\.,]+)\\s+([a-zA-Z]+)\\s*$"
         if (stringr::str_detect(x, measurement_regex)) return(TRUE)
         clean <- stringr::str_replace_all(x, "^\\s*[\\{\\[\\(<\\*\\s]+", "")
-        suffix_regex <- "\\s*(?:[A-Za-z\\u0400-\\u04FF\\u4e00-\\u9fa5\\.\\s]{1,25}|\\((?:[^()]+|\\([^()]*\\))*\\)|\\[(?:[^\\[\\]]+|\\[[^\\[\\]]*\\])*\\]|(?:(?<=[0-9A-Za-z\\.\\-\\%])\\s*(?:±|\\+/-|(?<![eE])\\s*(?:-|–|—|~|&)\\s*|\\s+(?:to|and)\\s+)\\s*[0-9,]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z%]+)?)|[-\\+\\u2010-\\u2015\\u2212])\\s*$"
+        suffix_regex <- "\\s*(?:[A-Za-z\\u0400-\\u04FF\\u4e00-\\u9fa5\\.\\s]{1,25}|\\((?:[^()]+|\\([^()]*\\))*\\)|\\[(?:[^\\[\\]]+|\\[[^\\[\\]]*\\])*\\]|(?:(?<=[0-9A-Za-z\\.\\-\\%])\\s*(?:\u00b1|\\+/-|(?<![eE])\\s*(?:-|\u2013|\u2014|~|&)\\s*|\\s+(?:to|and)\\s+)\\s*[0-9,]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?(?:[a-zA-Z%]+)?)|[-\\+\\u2010-\\u2015\\u2212])\\s*$"
         clean <- stringr::str_replace_all(clean, suffix_regex, "")
         clean <- stringr::str_replace_all(clean, suffix_regex, "")
         if (grepl("^[-\\u2010\\u2011\\u2012\\u2013\\u2014\\u2015\\u2212\\.]+", stringr::str_trim(clean))) return(TRUE)
