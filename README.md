@@ -1,24 +1,29 @@
 <div align="center">
 <h1>TidyPanel</h1>
-<p><strong>Practical table cleaning for R.</strong></p>
-<p>Less manual spreadsheet repair. More time for analysis.</p>
+<p><strong>The tabular cleaning step for AI workflows.</strong></p>
+<p>Spend tokens on analysis, not spreadsheet noise.</p>
 <p>
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
   <a href="#validation-coverage"><img src="https://img.shields.io/badge/external_validation-100%2B_cases-167D68?style=flat-square" alt="100+ external-data validation cases"></a>
   <img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license">
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
-<p><a href="#quick-start">Quick Start</a> | <a href="#three-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
+<p><a href="#quick-start">Quick Start</a> | <a href="#agent-workflow">Agent Workflow</a> | <a href="#three-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
 </div>
 
 ## What You Get
 
 | Value | In practice |
 | --- | --- |
-| Less repetitive cleanup | Standardize column names, missing markers and common numeric formats. |
-| Literal identifiers | Recognized codes retain their leading zeros instead of becoming measurements. |
-| Analysis-friendly tables | Optionally reshape wide period columns into long tables. |
-| Visible cleaning steps | Return the cleaned table and an operation audit together. |
+| Less prompt noise | Keep full observations in files; send only the context needed for a question. |
+| Reusable cleanup | Standardize column names, missing markers and common numeric formats. |
+| Literal identifiers | Recognized codes retain their text and leading zeros. |
+| Clear handoffs | Return a cleaned table and operation audit, with optional wide-to-long reshaping. |
+
+Let TidyPanel handle supported tabular preparation; let your agent handle analysis.
+Passing a compact summary instead of a complete raw report can reduce prompt
+content. Token savings depend on the data, selected output and model tokenizer;
+cleaning alone does not guarantee fewer tokens.
 
 **Inputs:** data frames, Excel, CSV, TSV, TXT and RDB, including supported
 ZIP and gzip-compressed tabular files.
@@ -40,16 +45,39 @@ They are not counts of independent databases.
 
 ## Download And Install
 
-**R 4.1 or later.** Download the source, install its dependencies, then try a demo.
+**R 4.1 or later, with a writable R library.** No AI service is required.
 
 1. On this GitHub repository, select **Code > Download ZIP**.
-2. Extract the ZIP, then run the code below in R.
-3. When the file picker opens, select **DESCRIPTION** inside the extracted package folder.
+2. Extract the ZIP and set `source_dir` to the folder containing **DESCRIPTION**.
+3. Run the code below in R. It does not open a file picker or mirror-selection menu.
 
 ```r
-install.packages(c("dplyr", "stringr", "stringi", "readxl"))
+install.packages(
+  c("dplyr", "stringr", "stringi", "readxl"),
+  repos = "https://cloud.r-project.org"
+)
+source_dir <- "path/to/extracted/TidyPanel"
+install.packages(source_dir, repos = NULL, type = "source")
+```
+
+An agent can also install the source directory through `Rscript`, after the
+dependencies above are installed. R must be available on its PATH:
+
+```sh
+Rscript --vanilla -e "install.packages(commandArgs(TRUE)[1], repos = NULL, type = 'source')" "path/to/extracted/TidyPanel"
+```
+
+<details>
+<summary>Prefer a file picker for manual installation?</summary>
+
+After installing the dependencies, run this in an interactive R session and
+select **DESCRIPTION** in the extracted package folder:
+
+```r
 install.packages(dirname(file.choose()), repos = NULL, type = "source")
 ```
+
+</details>
 
 <details>
 <summary>Already have a built R source archive?</summary>
@@ -86,6 +114,89 @@ result$audit
 The total row is removed and the two yearly columns become a four-row long
 table. Replace `input` with your own file path; omit `auto_pivot = TRUE`
 to keep wide columns.
+
+## Agent Workflow
+
+**Local table -> TidyPanel -> local result file + compact handoff -> AI analysis.**
+
+Agents with R execution can call the exported functions directly. Other agents
+can invoke R code through their existing process tool and `Rscript`; there is
+no separate hosted API, agent protocol or model dependency.
+
+| Step | Contract |
+| --- | --- |
+| Select | Supply a local file or named data frame. Choose the intended Excel sheet or ZIP member; defaults may select one panel, not every table. |
+| Declare | Set `na_strings` from the source definition. Do not guess missing meanings, units, dates or identifiers. |
+| Clean | Call `read_messy_panel(..., return_audit = TRUE, auto_pivot = FALSE)`. Enable reshaping only when requested. |
+| Inspect | Expect `result$data` and `result$audit`. Use `validate_panel(result$data, verbose = FALSE)` for heuristic quality flags, not semantic approval or automatic row removal. |
+| Return | Keep the full result locally. Pass an artifact path, dimensions, a limited preview and audit excerpt to the agent. Stop on errors or unexpected output shapes; preserve warnings for review. |
+
+A preview can still contain sensitive data. Redact it or keep it local unless
+sharing with the selected model is authorized.
+
+<details>
+<summary>Run a non-interactive Agent example</summary>
+
+This uses the bundled subtotal demo, whose only declared missing token here
+is the empty string. For another source, supply its own declared markers and
+selection options. Run from a job directory outside the installed package;
+use a new caller-owned output directory for each job.
+
+```r
+library(TidyPanel)
+
+input_path <- system.file(
+  "extdata", "demo_03_subtotals.csv",
+  package = "TidyPanel", mustWork = TRUE
+)
+result <- read_messy_panel(
+  input_path, na_strings = c(""),
+  auto_pivot = FALSE, return_audit = TRUE
+)
+stopifnot(
+  is.data.frame(result$data), nrow(result$data) > 0L,
+  is.data.frame(result$audit)
+)
+quality <- validate_panel(result$data, verbose = FALSE)
+
+output_dir <- "tidypanel-output"
+if (file.exists(output_dir)) stop("Choose a new output directory.")
+if (!dir.create(output_dir, recursive = TRUE)) stop("Cannot create output directory.")
+artifact_path <- file.path(output_dir, "cleaned.rds")
+saveRDS(list(data = result$data, audit = result$audit, quality = quality), artifact_path)
+
+preview_text <- function(data, rows, columns) {
+  view <- utils::head(data[, seq_len(min(ncol(data), columns)), drop = FALSE], rows)
+  view[] <- lapply(view, function(x) substr(as.character(x), 1L, 80L))
+  names(view) <- substr(names(view), 1L, 80L)
+  view
+}
+handoff <- list(
+  status = "cleaned",
+  artifact = normalizePath(artifact_path, winslash = "/", mustWork = TRUE),
+  n_rows = nrow(result$data),
+  n_cols = ncol(result$data),
+  preview = preview_text(result$data, 3L, 8L),
+  audit_preview = preview_text(result$audit, 5L, 2L),
+  quality_summary = list(
+    duplicate_rows = quality$n_duplicates,
+    high_missing_columns = length(quality$high_na_cols),
+    sparse_columns = length(quality$sparse_cols)
+  )
+)
+handoff
+```
+
+The preview is text truncated for context, not a replacement for the data.
+The local RDS artifact retains the full cleaned R objects and column classes;
+load it with `readRDS(handoff$artifact)` in a compatible trusted R environment.
+It is not a cross-language API payload or a file to upload automatically.
+The audit records supported operations and may be empty; it is not a complete
+cell-by-cell change history. Keep the source unchanged and review the result
+before analysis. Never assume that a small preview or quality report proves
+every observation is correct.
+
+</details>
 
 ## Three Small Examples
 
