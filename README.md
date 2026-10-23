@@ -1,9 +1,106 @@
-# TidyPanel
+<div align="center">
+<h1>TidyPanel</h1>
+<p><strong>Practical table cleaning for R.</strong></p>
+<p>Less manual spreadsheet repair. More time for analysis.</p>
+<p>
+  <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
+  <a href="#validation-coverage"><img src="https://img.shields.io/badge/external_validation-100%2B_cases-167D68?style=flat-square" alt="100+ external-data validation cases"></a>
+  <img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license">
+</p>
+<p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
+<p><a href="#quick-start">Quick Start</a> | <a href="#three-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
+</div>
 
-TidyPanel cleans spreadsheet-style tables from data frames, Excel, CSV, TSV,
-TXT, RDB, ZIP, and gzip-compressed tabular files. It standardizes column names
-and common numeric values, removes subtotal rows, infers types, and can return
-an audit table or reshape wide period columns.
+## What You Get
+
+| Value | In practice |
+| --- | --- |
+| Less repetitive cleanup | Standardize column names, missing markers and common numeric formats. |
+| Literal identifiers | Recognized codes retain their leading zeros instead of becoming measurements. |
+| Analysis-friendly tables | Optionally reshape wide period columns into long tables. |
+| Visible cleaning steps | Return the cleaned table and an operation audit together. |
+
+**Inputs:** data frames, Excel, CSV, TSV, TXT and RDB, including supported
+ZIP and gzip-compressed tabular files.
+
+## Validation Coverage
+
+**100+ external-data validation cases** across five domains:
+
+| Domain | Types of tables checked |
+| --- | --- |
+| Economics and public statistics | Prices, exchange rates and population series |
+| Weather and environment | Station observations and climate tables |
+| Science and health research | Measurements and aggregate indicators |
+| Transport and geography | Counts, schedules and coded reference tables |
+| Energy and industry | Consumption and production observations |
+
+Cases include cleaning checks and clear rejection of unsupported layouts.
+They are not counts of independent databases.
+
+## Download And Install
+
+**R 4.1 or later.** Download the source, install its dependencies, then try a demo.
+
+1. On this GitHub repository, select **Code > Download ZIP**.
+2. Extract the ZIP, then run the code below in R.
+3. When the file picker opens, select **DESCRIPTION** inside the extracted package folder.
+
+```r
+install.packages(c("dplyr", "stringr", "stringi", "readxl"))
+install.packages(dirname(file.choose()), repos = NULL, type = "source")
+```
+
+<details>
+<summary>Already have a built R source archive?</summary>
+
+```r
+install.packages("TidyPanel_0.2.128.tar.gz", repos = NULL, type = "source")
+```
+
+A built source archive also includes the example guide:
+
+```r
+vignette("TidyPanel_introduction", package = "TidyPanel")
+```
+
+</details>
+
+## Quick Start
+
+Run a bundled example without preparing your own file:
+
+```r
+library(TidyPanel)
+
+input <- system.file(
+  "extdata", "demo_03_subtotals.csv",
+  package = "TidyPanel", mustWork = TRUE
+)
+result <- read_messy_panel(input, auto_pivot = TRUE, return_audit = TRUE)
+
+result$data
+result$audit
+```
+
+The total row is removed and the two yearly columns become a four-row long
+table. Replace `input` with your own file path; omit `auto_pivot = TRUE`
+to keep wide columns.
+
+## Three Small Examples
+
+| CSV | Try it for |
+| --- | --- |
+| [Numbers](inst/extdata/demo_01_numbers.csv) | Grouped amounts, negatives and leading-zero codes |
+| [Dates](inst/extdata/demo_02_dates.csv) | Calendar dates and missing readings |
+| [Subtotals](inst/extdata/demo_03_subtotals.csv) | Total-row removal and wide-to-long reshaping |
+
+Exactly three fictional CSVs, each with three input records. No personal
+records, development datasets or regression fixtures are distributed.
+See the [example guide](vignettes/TidyPanel_introduction.Rmd) for all three workflows.
+
+<details>
+<summary>Cleaning notes and supported-layout boundaries</summary>
 
 Stable categorical labels in headerless numeric tables and paired free/total
 measurements are retained. For numeric text reports, provide the observation
@@ -70,70 +167,8 @@ observation table; the simplified public reader does not combine their sections.
 Large-table subtotal checks retain the existing row-selection rules while
 avoiding repeated per-record matching.
 
-## Installation
-
-Install the packages listed under Imports in DESCRIPTION, then install the
-downloaded and extracted source folder. Replace the example path with its
-actual location:
-
-```sh
-R CMD INSTALL path/to/TidyPanel
-```
-
-Alternatively, install a locally built source archive:
-
-```r
-install.packages("TidyPanel_0.2.128.tar.gz", repos = NULL, type = "source")
-```
-
-The built source archive includes the three-example guide:
-
-```r
-vignette("TidyPanel_introduction", package = "TidyPanel")
-```
-
-## Three Small Examples
-
-The package includes exactly three fictional CSV examples, each with three
-input rows. They contain no personal information and are not training,
-validation, or regression datasets.
-
-| CSV | Example |
-| --- | --- |
-| `demo_01_numbers.csv` | Grouped amounts, negatives, and missing values |
-| `demo_02_dates.csv` | Dates and a missing reading |
-| `demo_03_subtotals.csv` | A total row and wide yearly columns |
-
-```r
-library(TidyPanel)
-
-# Numbers, missing values, and leading-zero record codes
-numbers <- read_messy_panel(system.file(
-  "extdata", "demo_01_numbers.csv", package = "TidyPanel", mustWork = TRUE
-))
-numbers
-
-# Calendar dates and a missing reading
-dates <- read_messy_panel(system.file(
-  "extdata", "demo_02_dates.csv", package = "TidyPanel", mustWork = TRUE
-))
-dates
-
-# A total row and two yearly columns
-panel <- read_messy_panel(
-  system.file(
-    "extdata", "demo_03_subtotals.csv", package = "TidyPanel", mustWork = TRUE
-  ),
-  auto_pivot = TRUE,
-  return_audit = TRUE
-)
-panel$data
-panel$audit
-```
-
-To clean your own file, pass its path to `read_messy_panel()`.
-The release does not include development datasets or regression fixtures.
+</details>
 
 ## Contact
 
-Tony Lu: xulunt123@gmail.com
+**Tony Lu** | [xulunt123@gmail.com](mailto:xulunt123@gmail.com)
