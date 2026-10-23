@@ -53,7 +53,7 @@ They are not counts of independent databases.
 
 ```r
 install.packages(
-  c("dplyr", "stringr", "stringi", "readxl"),
+  c("dplyr", "stringr", "stringi", "readxl", "jsonlite"),
   repos = "https://cloud.r-project.org"
 )
 source_dir <- "path/to/extracted/TidyPanel"
@@ -83,7 +83,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.128.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.129.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -117,84 +117,93 @@ to keep wide columns.
 
 ## Agent Workflow
 
-**Local table -> TidyPanel -> local result file + compact handoff -> AI analysis.**
+**One request -> one JSON response -> complete local result files.**
 
-Agents with R execution can call the exported functions directly. Other agents
-can invoke R code through their existing process tool and `Rscript`; there is
-no separate hosted API, agent protocol or model dependency.
+Install the matching **v0.2.129 public source package** first. The launcher
+checks the installed edition and version before loading it. This is a local
+process interface, not an MCP server or automatic global tool registration.
 
-| Step | Contract |
-| --- | --- |
-| Select | Supply a local file or named data frame. Choose the intended Excel sheet or ZIP member; defaults may select one panel, not every table. |
-| Declare | Set `na_strings` from the source definition. Do not guess missing meanings, units, dates or identifiers. |
-| Clean | Call `read_messy_panel(..., return_audit = TRUE, auto_pivot = FALSE)`. Enable reshaping only when requested. |
-| Inspect | Expect `result$data` and `result$audit`. Use `validate_panel(result$data, verbose = FALSE)` for heuristic quality flags, not semantic approval or automatic row removal. |
-| Return | Keep the full result locally. Pass an artifact path, dimensions, a limited preview and audit excerpt to the agent. Stop on errors or unexpected output shapes; preserve warnings for review. |
+From the extracted source folder, an agent can inspect the interface and run a job:
 
-A preview can still contain sensitive data. Redact it or keep it local unless
-sharing with the selected model is authorized.
-
-<details>
-<summary>Run a non-interactive Agent example</summary>
-
-This uses the bundled subtotal demo, whose only declared missing token here
-is the empty string. For another source, supply its own declared markers and
-selection options. Run from a job directory outside the installed package;
-use a new caller-owned output directory for each job.
-
-```r
-library(TidyPanel)
-
-input_path <- system.file(
-  "extdata", "demo_03_subtotals.csv",
-  package = "TidyPanel", mustWork = TRUE
-)
-result <- read_messy_panel(
-  input_path, na_strings = c(""),
-  auto_pivot = FALSE, return_audit = TRUE
-)
-stopifnot(
-  is.data.frame(result$data), nrow(result$data) > 0L,
-  is.data.frame(result$audit)
-)
-quality <- validate_panel(result$data, verbose = FALSE)
-
-output_dir <- "tidypanel-output"
-if (file.exists(output_dir)) stop("Choose a new output directory.")
-if (!dir.create(output_dir, recursive = TRUE)) stop("Cannot create output directory.")
-artifact_path <- file.path(output_dir, "cleaned.rds")
-saveRDS(list(data = result$data, audit = result$audit, quality = quality), artifact_path)
-
-preview_text <- function(data, rows, columns) {
-  view <- utils::head(data[, seq_len(min(ncol(data), columns)), drop = FALSE], rows)
-  view[] <- lapply(view, function(x) substr(as.character(x), 1L, 80L))
-  names(view) <- substr(names(view), 1L, 80L)
-  view
-}
-handoff <- list(
-  status = "cleaned",
-  artifact = normalizePath(artifact_path, winslash = "/", mustWork = TRUE),
-  n_rows = nrow(result$data),
-  n_cols = ncol(result$data),
-  preview = preview_text(result$data, 3L, 8L),
-  audit_preview = preview_text(result$audit, 5L, 2L),
-  quality_summary = list(
-    duplicate_rows = quality$n_duplicates,
-    high_missing_columns = length(quality$high_na_cols),
-    sparse_columns = length(quality$sparse_cols)
-  )
-)
-handoff
+```sh
+Rscript --vanilla exec/tidypanel.R describe
+Rscript --vanilla exec/tidypanel.R clean --request request.json
 ```
 
-The preview is text truncated for context, not a replacement for the data.
-The local RDS artifact retains the full cleaned R objects and column classes;
-load it with `readRDS(handoff$artifact)` in a compatible trusted R environment.
-It is not a cross-language API payload or a file to upload automatically.
-The audit records supported operations and may be empty; it is not a complete
-cell-by-cell change history. Keep the source unchanged and review the result
-before analysis. Never assume that a small preview or quality report proves
-every observation is correct.
+Send a UTF-8 JSON object in the request file, or use `clean --request -` and
+send the same object on standard input, then close that input stream:
+
+```json
+{
+  "input": "inst/extdata/demo_03_subtotals.csv",
+  "output_dir": "../tidypanel-job-001",
+  "na_strings": [""],
+  "auto_pivot": true
+}
+```
+
+This request uses one of the three fictional demos, not an additional dataset.
+For another source, declare its own missing markers and choose its intended
+Excel `sheet` or ZIP `archive_member`. All paths are relative to the process
+working directory, including requests read from files.
+
+| Interface | Contract |
+| --- | --- |
+| Input | One local tabular file, a new output directory and explicit `na_strings`. Unknown keys, URLs and network-share paths are rejected. |
+| Discovery | `describe` returns the JSON request schema, limits, result fields and exit codes. |
+| Output | Exactly one JSON response on stdout. Reader chatter goes to stderr; bounded warning messages are retained in the response. |
+| Full results | `artifacts` names the cleaned RDS, convenience CSV, audit CSV and complete column metadata JSON. |
+| Preview | Off by default. Opt in with `preview_rows`; limits are 10 rows, 20 columns and 160 characters per displayed label or value. |
+| Failure | A nonzero exit code and `status: "error"`. Do not treat partial output directories as successful jobs. |
+
+On success, `status` is `"ok"`, with `row_count`, `column_count`,
+`artifacts`, `preview`, `audit_preview` and warning fields. Start with the
+counts and artifact paths; read only the data needed for the question.
+A preview, path, warning or audit can contain sensitive caller information.
+Redact it or keep it local unless sharing with the selected model is authorized.
+
+<details>
+<summary>Installed entry point, limits and exit codes</summary>
+
+To locate the launcher after installation, without relying on the source folder:
+
+```r
+system.file("exec", "tidypanel.R", package = "TidyPanel", mustWork = TRUE)
+```
+
+Pass that returned path to `Rscript --vanilla`. R callers can alternatively
+use `TidyPanel::tidypanel_cli()`; it returns an exit status without terminating R.
+The bundled launcher exits with that status.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Completed successfully; review any warnings. |
+| 2 | Invalid arguments, malformed JSON or invalid request fields. |
+| 3 | Missing dependencies or a nonmatching installed edition/version. |
+| 4 | Cleaning failed, an archive has unsafe paths, or output is not one table. |
+| 5 | Output directory unavailable or artifact writing failed. |
+
+Requests are limited to 65,536 bytes. Only options listed by `describe` are
+accepted. `na_strings: []` declares no caller missing tokens. `sheet` selects
+one name or positive index, not `"ALL"`. `auto_pivot` defaults to false.
+`preview_rows` defaults to 0; `preview_columns` defaults to 8 and
+`preview_chars` to 80. Preview cells are text, with null for missing positions;
+their column indices map to the complete schema in the metadata artifact.
+
+The output directory must be new, have an existing parent and stay outside
+the installed package and launcher package folders. Existing files are never
+overwritten by the job interface. A failed write may leave a partial new
+directory; retain it for inspection and choose a new directory for a retry.
+The interface inherits the caller's filesystem permissions and is not a sandbox.
+
+The RDS artifact retains the full cleaned R table and audit for a compatible
+trusted R environment. CSV is a convenience export with empty fields for
+missing values; it cannot preserve every type or distinguish every literal
+empty string from missingness. Consult column metadata before cross-language
+reading. The audit records supported operations and may be empty; it is not a
+complete cell-by-cell history. Preserve the source and review the result before
+analysis. This interface adds no new cleaning rules, unit inference or analysis
+model, and sends no files to an AI service.
 
 </details>
 

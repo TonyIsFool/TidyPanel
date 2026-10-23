@@ -1,4 +1,13 @@
-# Release (v0.2.128)
+# Release (v0.2.129)
+
+Adds a local JSON cleaning launcher around the existing public reader. Requests
+are bounded and typed; preview values are opt-in. Existing output directories
+and output inside package folders are refused. Structured responses, exit codes
+and local artifacts support agent callers without a hosted service. The existing
+cleaning functions and the same three fictional examples are unchanged. No
+development or validation materials are distributed.
+
+## Previous Maintenance
 
 Column-name matching now explicitly qualifies its standard-library distance
 function, including in minimal R sessions. Unicode source literals use portable

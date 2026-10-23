@@ -1,6 +1,6 @@
 Package: TidyPanel
 Title: Universal Messy Panel Data Cleaner
-Version: 0.2.128
+Version: 0.2.129
 Authors@R: person(given = "Tony", family = "Lu", email = "xulunt123@gmail.com", role = c("aut", "cre"))
 Author: Tony Lu [aut, cre]
 Maintainer: Tony Lu <xulunt123@gmail.com>
@@ -13,7 +13,8 @@ Description: A robust toolkit designed to standardize and clean complex tabular 
     key-value extraction from decoy rows, gap-based block clustering, and messy table
     resolution. Methods draw on tidy data principles described in Wickham (2014)
     <doi:10.18637/jss.v059.i10> and the 'readxl' parsing infrastructure described in
-    Wickham & Bryan (2023) <https://readxl.tidyverse.org>.
+    Wickham & Bryan (2023) <https://readxl.tidyverse.org>. A local JSON command-line
+    interface supports reproducible table-cleaning jobs and bounded agent handoffs.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
@@ -24,8 +25,10 @@ Imports:
     dplyr,
     stringr,
     stringi,
-    readxl
+    readxl,
+    jsonlite (>= 1.8.9)
 Suggests: 
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+Config/TidyPanel/Edition: public
