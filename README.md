@@ -1,8 +1,9 @@
 <div align="center">
 <h1>TidyPanel</h1>
-<p><strong>The tabular cleaning step for AI workflows.</strong></p>
-<p>Spend tokens on analysis, not spreadsheet noise.</p>
+<p><strong>0 AI tokens for table cleaning. Save your agent for higher-level work.</strong></p>
+<p>Clean supported tables locally with code, not model calls. Let your AI agent focus on analysis, reasoning and decisions.</p>
 <p>
+  <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
   <a href="#validation-coverage"><img src="https://img.shields.io/badge/external_validation-100%2B_cases-167D68?style=flat-square" alt="100+ external-data validation cases"></a>
   <img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license">
@@ -11,19 +12,39 @@
 <p><a href="#quick-start">Quick Start</a> | <a href="#agent-workflow">Agent Workflow</a> | <a href="#three-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
 </div>
 
+## Clean With Code. Think With AI.
+
+**Local tables -> TidyPanel -> cleaned files + audit -> your AI agent.**
+
+| Let TidyPanel handle | Save your agent for |
+| --- | --- |
+| Supported table layouts, column names and common numeric formats | Choosing the right analysis and reasoning about the problem |
+| Caller-declared missing markers and optional wide-to-long reshaping | Comparing results, testing hypotheses and drawing conclusions |
+| Local cleaned files, operation audits and compact result summaries | Explaining findings and deciding what to do next |
+
+The cleaning step runs entirely in local R code: **0 model calls, 0 AI inference
+tokens, no AI API key required.** An agent can call it as a tool instead of
+spending model context on row-by-row cleanup or rewriting routine cleaning code.
+
+**The boundary:** agent instructions, tool-call messages and results sent to a
+model may still consume tokens. Local computation uses normal machine resources.
+Total token savings depend on the workflow; this is not a claim that an entire
+AI session is token-free.
+
 ## What You Get
 
 | Value | In practice |
 | --- | --- |
-| Less prompt noise | Keep full observations in files; send only the context needed for a question. |
+| 0-token cleaning step | Run supported cleanup without sending rows to an AI model. |
+| More context for reasoning | Keep full observations in files; send only the context needed for a question. |
 | Reusable cleanup | Standardize column names, missing markers and common numeric formats. |
 | Literal identifiers | Recognized codes retain their text and leading zeros. |
 | Clear handoffs | Return a cleaned table and operation audit, with optional wide-to-long reshaping. |
 
-Let TidyPanel handle supported tabular preparation; let your agent handle analysis.
-Passing a compact summary instead of a complete raw report can reduce prompt
-content. Token savings depend on the data, selected output and model tokenizer;
-cleaning alone does not guarantee fewer tokens.
+Use TidyPanel for supported routine table preparation. Give your agent the counts,
+warnings and selected data it needs for the higher-level task, not the entire raw
+table by default. Review the cleaned result and any unsupported-layout errors
+before analysis; the tool does not replace domain judgment.
 
 **Inputs:** data frames, Excel, CSV, TSV, TXT and RDB, including supported
 ZIP and gzip-compressed tabular files.
@@ -118,6 +139,11 @@ to keep wide columns.
 ## Agent Workflow
 
 **One request -> one JSON response -> complete local result files.**
+
+Call the cleaner, then reason over the result. TidyPanel performs the supported
+cleanup locally without invoking a model; your agent chooses the task and how
+much of the resulting data to read. Preview is off by default, so the tool
+response does not automatically echo the input table into model context.
 
 Install the matching **v0.2.129 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
