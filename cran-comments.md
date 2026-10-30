@@ -1,4 +1,28 @@
-# Release (v0.2.129)
+# Release (v0.2.132)
+
+Mixed compact digit/letter columns with leading-zero evidence retain their text
+in the reader and standalone inference, including letter-first tokens. This
+prevents rare nonnumeric codes from becoming missing and preserves padding in
+numeric-majority fields. Plain decimal/exponent representations keep baseline
+conversion, and existing compact-month calendar handling retains precedence.
+This is lexical retention, not a source-schema or code validator.
+
+## Previous Auxiliary-Counter Maintenance
+
+Auxiliary header counters now cover only the current row chunk, rather than every
+source row. Candidate positions and names are restored without changing row
+classification, output data or audits. Tile-end arithmetic remains bounded before
+addition. This is memory maintenance, not expanded cleaning-format support.
+
+## Previous Memory Maintenance
+
+Row detection accumulates the existing classification counts in bounded chunks,
+avoiding multiple full-table logical masks. Cleaning decisions, output order,
+missing handling, audits and the three fictional examples are unchanged. This
+reduces temporary allocations; it does not stream the complete cleaning pipeline
+or remove the need to fit the source and result in memory.
+
+## Previous Interface Update
 
 Adds a local JSON cleaning launcher around the existing public reader. Requests
 are bounded and typed; preview values are opt-in. Existing output directories

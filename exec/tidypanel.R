@@ -11,7 +11,7 @@ local({
     package_path <- tryCatch(find.package("TidyPanel", quiet = TRUE), error = function(e) character())
     metadata <- if (length(package_path) == 1L) tryCatch(read.dcf(file.path(package_path, "DESCRIPTION")), error = function(e) NULL) else NULL
     if (is.null(metadata) || !all(c("Version", "Config/TidyPanel/Edition") %in% colnames(metadata)) ||
-        metadata[1L, "Version"] != "0.2.129" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
+        metadata[1L, "Version"] != "0.2.132" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
         fail("edition_mismatch", "Install the matching public source edition before using this launcher.", 3L)
     }
     loaded <- tryCatch(suppressWarnings(suppressPackageStartupMessages(requireNamespace("TidyPanel", quietly = TRUE))), error = function(e) FALSE)

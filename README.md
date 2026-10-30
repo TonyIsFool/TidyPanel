@@ -104,7 +104,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.129.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.132.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -145,7 +145,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. Preview is off by default, so the tool
 response does not automatically echo the input table into model context.
 
-Install the matching **v0.2.129 public source package** first. The launcher
+Install the matching **v0.2.132 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 
@@ -303,8 +303,11 @@ their literal tokens. Unit-qualified total rain, snow, and precipitation fields
 and their corresponding flags are retained as measurements.
 Slash-dated series exports require a separately prepared named observation
 table; unsupported metadata layouts fail clearly instead of merging labels.
-Mixed compact codes with zero-padded evidence stay text rather than losing
-letters or padding. Scientific notation and formatted decimal amounts retain
+In both the reader and standalone inference, compact mixed digit/letter fields
+with leading-zero evidence stay text rather than losing letters or padding.
+This lexical protection does not validate code meanings or arbitrary punctuation.
+Existing compact-month calendar handling keeps precedence over this code guard.
+Scientific notation and formatted decimal amounts retain
 numeric conversion. Unsupported name-first reference exports require a named
 table with an identifier column first.
 Sectioned control-record reports require a separately prepared named
@@ -312,6 +315,12 @@ observation table; the simplified public reader does not combine their sections.
 
 Large-table subtotal checks retain the existing row-selection rules while
 avoiding repeated per-record matching.
+
+Row detection classifies bounded chunks rather than retaining several full-table
+logical masks. Auxiliary header counters are also limited to the current row chunk.
+This reduces temporary storage without changing supported cleaning rules.
+The source table and cleaned output still need to fit in memory;
+this is not an out-of-core reader.
 
 </details>
 

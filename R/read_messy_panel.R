@@ -341,6 +341,47 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
     is_numeric_like_vector_uncached(values)
   }
 
+  summarize_panel_rows <- function(raw_mat) {
+    row_count <- nrow(raw_mat)
+    column_count <- ncol(raw_mat)
+    numeric_counts <- non_empty_counts <- numeric(row_count)
+    names(numeric_counts) <- names(non_empty_counts) <- rownames(raw_mat)
+    header_candidates <- list()
+    if (row_count && column_count) {
+      # Bound classification masks instead of retaining several full-table copies.
+      row_step <- min(row_count, 262144L)
+      column_step <- max(1L, 262144L %/% row_step)
+      header_candidates <- vector("list", ceiling(row_count / row_step))
+      chunk_index <- 0L
+      for (row_start in seq.int(1L, row_count, by = row_step)) {
+        chunk_index <- chunk_index + 1L
+        row_end <- row_start + min(row_step - 1L, row_count - row_start)
+        rows <- seq.int(row_start, row_end)
+        ordinal_counts <- other_numeric_counts <- numeric(length(rows))
+        for (column_start in seq.int(1L, column_count, by = column_step)) {
+          column_end <- column_start + min(column_step - 1L, column_count - column_start)
+          columns <- seq.int(column_start, column_end)
+          cells <- raw_mat[rows, columns, drop = FALSE]
+          valid <- !is.na(cells) & cells != ""
+          numeric_cells <- matrix(is_numeric_like_vector(as.character(cells)), nrow = length(rows)) & valid
+          ordinal_cells <- matrix(grepl(
+            "^[[:space:]]*(?:[0-9]{1,2}|100)(?:st|nd|rd|th)[[:space:]]*$",
+            as.character(cells), ignore.case = TRUE
+          ), nrow = length(rows))
+          numeric_counts[rows] <- numeric_counts[rows] + rowSums(numeric_cells)
+          non_empty_counts[rows] <- non_empty_counts[rows] + rowSums(valid)
+          ordinal_counts <- ordinal_counts + rowSums(ordinal_cells)
+          other_numeric_counts <- other_numeric_counts + rowSums(numeric_cells & !ordinal_cells)
+        }
+        header_candidates[[chunk_index]] <- rows[which(ordinal_counts >= 2L & other_numeric_counts == 0L)]
+      }
+    }
+    statistical_headers <- as.integer(unlist(header_candidates, use.names = FALSE))
+    if (!is.null(rownames(raw_mat))) names(statistical_headers) <- rownames(raw_mat)[statistical_headers]
+    list(numeric = numeric_counts, non_empty = non_empty_counts,
+      statistical_headers = statistical_headers)
+  }
+
   is_identifier_column <- function(name) {
     normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", .separate_identifier_suffix(name)))
     japanese_corporate_number <- intToUtf8(c(0x6CD5, 0x4EBA, 0x756A, 0x53F7))
@@ -1257,28 +1298,17 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           }
       }
       
-      numeric_like_mat <- matrix(
-          is_numeric_like_vector(as.character(raw_mat)),
-          nrow = nrow(raw_mat),
-          ncol = ncol(raw_mat)
-      )
-      valid_cells <- !is.na(raw_mat) & raw_mat != ""
-      num_counts <- rowSums(numeric_like_mat & valid_cells)
+      row_summary <- summarize_panel_rows(raw_mat)
+      num_counts <- row_summary$numeric
+      non_empty_counts <- row_summary$non_empty
+      statistical_header_candidates <- row_summary$statistical_headers
+      rm(row_summary)
       if (named_field_value_table) {
           num_counts[-1L] <- pmax(1L, num_counts[-1L])
           input_audit[["Named Field-Value Records Preserved"]] <- nrow(raw_mat) - 1L
       }
 
       # Ordinal percentile labels can look numeric after annotation cleanup.
-      ordinal_header_cells <- matrix(
-          grepl("^[[:space:]]*(?:[0-9]{1,2}|100)(?:st|nd|rd|th)[[:space:]]*$",
-              as.character(raw_mat), ignore.case = TRUE),
-          nrow = nrow(raw_mat), ncol = ncol(raw_mat)
-      )
-      statistical_header_candidates <- which(
-          rowSums(ordinal_header_cells) >= 2L &
-              rowSums(numeric_like_mat & valid_cells & !ordinal_header_cells) == 0L
-      )
       statistical_header_rows <- statistical_header_candidates[vapply(
           statistical_header_candidates, function(r) {
               labels <- tolower(stringi::stri_trim_both(as.character(raw_mat[r, ])))
@@ -1321,7 +1351,6 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       true_runs_indices <- which(is_data_row == TRUE)
       
       if (length(true_runs_indices) == 0) {
-        non_empty_counts <- rowSums(valid_cells)
         candidate_rows <- which(non_empty_counts >= 2)
         if (length(candidate_rows) < 2) {
           stop("Could not detect any numeric panel data block.")
@@ -1346,8 +1375,8 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           if (gaps[i] <= 1) return(FALSE)
 
           between_rows <- seq.int(true_runs_indices[i] + 1, true_runs_indices[i + 1] - 1)
-          non_empty_counts <- rowSums(valid_cells[between_rows, , drop = FALSE])
-          any(non_empty_counts == 0) && any(non_empty_counts >= 2 & num_counts[between_rows] == 0)
+          between_counts <- non_empty_counts[between_rows]
+          any(between_counts == 0) && any(between_counts >= 2 & num_counts[between_rows] == 0)
       }, logical(1))
       block_boundaries <- which(gaps > 5 | header_after_blank)
       if (any(header_after_blank)) {
@@ -2355,8 +2384,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
         values <- stringi::stri_trim_both(x[!is.na(x)])
         values <- values[values != ""]
         length(values) > 0 &&
-          all(grepl("^[0-9]+(?:[A-Za-z][A-Za-z0-9_-]*)?$", values, perl = TRUE)) &&
+          all(grepl("^(?:[0-9]+(?:[A-Za-z][A-Za-z0-9_-]*)?|[A-Za-z]+[0-9]+[A-Za-z0-9_-]*)$", values, perl = TRUE)) &&
           !any(grepl("^[0-9]+[eE][+-]?[0-9]+$", values)) &&
+          !any(grepl("^[0-9]{1,2}[A-Za-z]{3,9}[0-9]{4}$", values)) &&
           any(grepl("^0[0-9]+(?:[A-Za-z][A-Za-z0-9_-]*)?$", values, perl = TRUE))
       }
 
