@@ -1,68 +1,73 @@
 <div align="center">
 <h1>TidyPanel</h1>
-<p><strong>0 AI tokens for table cleaning. Save your agent for higher-level work.</strong></p>
-<p>Clean supported tables locally with code, not model calls. Let your AI agent focus on analysis, reasoning and decisions.</p>
+<p><strong>Spend tokens on reasoning. Let code clean the tables.</strong></p>
+<p>Local CSV and Excel data cleaning for AI agents, with an R package and JSON command-line interface.</p>
 <p>
   <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
   <a href="#validation-coverage"><img src="https://img.shields.io/badge/external_validation-100%2B_cases-167D68?style=flat-square" alt="100+ external-data validation cases"></a>
-  <img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
-<p><a href="#quick-start">Quick Start</a> | <a href="#agent-workflow">Agent Workflow</a> | <a href="#four-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
+<p><a href="#for-ai-agents">For AI Agents</a> | <a href="#quick-start">Quick Start</a> | <a href="#four-small-examples">Four Examples</a> | <a href="AGENTS.md">Agent Guide</a></p>
 </div>
 
-## Clean With Code. Think With AI.
+**CSV / Excel / TSV / TXT / RDB -> local cleaning -> files + audit -> agent reasoning.**
 
-**Local tables -> TidyPanel -> cleaned files + audit -> your AI agent.**
+TidyPanel handles supported table preparation in local R code: **0 model calls,
+0 AI inference tokens, no AI API key** for the cleaning step. Your agent spends
+its context on the question, not on rewriting routine cleanup code.
 
-| Let TidyPanel handle | Save your agent for |
+| Routine work, handled locally | What your agent receives |
 | --- | --- |
-| Supported table layouts, column names and common numeric formats | Choosing the right analysis and reasoning about the problem |
-| Caller-declared missing markers and optional wide-to-long reshaping | Comparing results, testing hypotheses and drawing conclusions |
-| Local cleaned files, operation audits and compact result summaries | Explaining findings and deciding what to do next |
+| Supported table layouts and column-name cleanup | Cleaned files and complete column metadata |
+| Common numeric formats and declared missing tokens | Row/column counts, missing counts and warnings |
+| Optional wide-to-long reshaping | Local artifacts and an operation audit |
+| A repeatable command-line workflow | One JSON request and one JSON response |
 
-The cleaning step runs entirely in local R code: **0 model calls, 0 AI inference
-tokens, no AI API key required.** An agent can call it as a tool instead of
-spending model context on row-by-row cleanup or rewriting routine cleaning code.
+Full observations stay in local files. Previews are **off by default**. Agent
+instructions, tool calls and content sent to a model can still consume tokens;
+total savings depend on the workflow. Review results before analysis.
 
-**The boundary:** agent instructions, tool-call messages and results sent to a
-model may still consume tokens. Local computation uses normal machine resources.
-Total token savings depend on the workflow; this is not a claim that an entire
-AI session is token-free.
+## For AI Agents
 
-## What You Get
+**Find the contract. Run the cleaner. Read only what you need.**
 
-| Value | In practice |
-| --- | --- |
-| 0-token cleaning step | Run supported cleanup without sending rows to an AI model. |
-| More context for reasoning | Keep full observations in files; send only the context needed for a question. |
-| Reusable cleanup | Standardize column names, missing markers and common numeric formats. |
-| Literal identifiers | Recognized codes retain their text and leading zeros. |
-| Clear handoffs | Return a cleaned table and operation audit, with optional wide-to-long reshaping. |
+After [installing the public package](#download-and-install), run these commands
+from the extracted source folder:
 
-Use TidyPanel for supported routine table preparation. Give your agent the counts,
-warnings and selected data it needs for the higher-level task, not the entire raw
-table by default. Review the cleaned result and any unsupported-layout errors
-before analysis; the tool does not replace domain judgment.
+```sh
+Rscript --vanilla exec/tidypanel.R describe
+Rscript --vanilla exec/tidypanel.R clean --request request.json
+```
 
-**Inputs:** data frames, Excel, CSV, TSV, TXT and RDB, including supported
-ZIP and gzip-compressed tabular files.
+`describe` returns the tool name `tidypanel.clean`, the request schema, exit codes
+and four fictional example request templates. Pick a template from `tool.examples`,
+choose a new output directory, then submit its `request` object.
+For caller data, declare missing markers from that source instead of guessing.
+
+- [AGENTS.md](AGENTS.md): compact setup, invocation and result-handling guide.
+- [llms.txt](llms.txt): lightweight repository documentation index.
+- [Full Agent contract](#agent-workflow): inputs, outputs, limits and failure handling.
+
+These are discoverable documentation entry points, not a hosted API, MCP server
+or automatic registration with every agent.
 
 ## Validation Coverage
 
-**100+ external-data validation cases** across five domains:
+**100+ external-data validation cases** across five table families:
 
-| Domain | Types of tables checked |
+| Domain | Tables checked |
 | --- | --- |
 | Economics and public statistics | Prices, exchange rates and population series |
 | Weather and environment | Station observations and climate tables |
-| Science and health research | Measurements and aggregate indicators |
+| Science and health | Measurements and aggregate indicators |
 | Transport and geography | Counts, schedules and coded reference tables |
 | Energy and industry | Consumption and production observations |
 
 Cases include cleaning checks and clear rejection of unsupported layouts.
-They are not counts of independent databases.
+They are not counts of independent databases. Four small fictional CSVs are
+included for a first run; development datasets are not distributed.
 
 ## Download And Install
 

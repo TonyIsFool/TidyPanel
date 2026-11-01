@@ -16,3 +16,5 @@
 ^training(_data)?$
 ^validation(_data)?$
 ^source_samples$
+^AGENTS\.md$
+^llms\.txt$

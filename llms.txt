@@ -1,0 +1,31 @@
+# TidyPanel
+
+> Local tabular data cleaning for AI agents. An R package and JSON CLI for
+> supported CSV, Excel, TSV, TXT and RDB tables, with local artifacts and an audit.
+
+The cleaning step makes zero model calls and consumes zero AI inference tokens.
+Agent instructions and shared results can still consume tokens. R 4.1 or later
+and the matching installed public package are required. Four tiny fictional CSV
+demos are included; no AI API key is needed.
+
+Run `Rscript --vanilla exec/tidypanel.R describe` from the source root for the
+current request schema, limits and example request templates. Use
+`Rscript --vanilla exec/tidypanel.R clean --request request.json` for a job.
+Keep full observations local and previews off unless sharing is authorized.
+
+This is a repository documentation index, not automatic agent registration,
+a hosted API or an MCP server. Resolve relative links from this file's directory.
+
+## Start Here
+
+- [Agent guide](AGENTS.md): setup, invocation, result handling and privacy.
+- [README](README.md): value, installation, quick start and supported boundaries.
+- [Four-example guide](vignettes/TidyPanel_introduction.Rmd): workflows using only the bundled fictional CSV demonstrations.
+
+## Reference
+
+- [Package metadata](DESCRIPTION): R version and dependency requirements.
+- [CLI help](man/tidypanel_cli.Rd): process interface and result handling.
+- [Reader help](man/read_messy_panel.Rd): supported local table reader.
+- [Launcher](exec/tidypanel.R): entry point for the matching installed package.
+- [MIT license](LICENSE.md): software reuse terms.
