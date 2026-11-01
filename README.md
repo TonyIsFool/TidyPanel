@@ -256,6 +256,14 @@ See the [example guide](vignettes/TidyPanel_introduction.Rmd) for all four workf
 <details>
 <summary>Cleaning notes and supported-layout boundaries</summary>
 
+**Automatic inference:** `infer_data_types()` is a separate, heuristic operation.
+It can convert categorical text to logical values and turn nonmatching values
+into missing values when a threshold is met. A successful run or a stricter
+threshold is not proof that category meanings were preserved. Use recognized
+`_code` or `_id` names for identifier fields, retain the source, and review output
+types and missing counts. The Agent job interface uses `read_messy_panel()`;
+it does not apply an extra standalone inference pass.
+
 Stable categorical labels in headerless numeric tables and paired free/total
 measurements are retained. For numeric text reports, provide the observation
 section as a plain table or data frame rather than including report metadata.

@@ -4,8 +4,13 @@
 #' `infer_data_types()` scans character columns in a data frame, identifies common
 #' financial placeholders for missing data (e.g., "-", "N/A", "n.m."), safely replaces 
 #' them with `NA`, retains identifier-like columns such as phone numbers as text, and
-#' then coerces the remaining columns to `numeric` or `Date` if a high percentage of
-#' their values match those types.
+#' then infers `numeric`, `Date` or `logical` values from the remaining columns.
+#' This is heuristic coercion, not schema validation or a guarantee of literal
+#' text preservation. Categorical labels matching boolean tokens can become
+#' logical values; nonmatching values can become missing when a threshold is met.
+#' A stricter threshold does not preserve labels that match an inferred type.
+#' Use recognized identifier/code field names for literal codes, retain the source,
+#' and review output types and missing positions before analysis.
 #' Compact mixed digit/letter fields with leading-zero evidence retain text.
 #' Decimal and exponent numeric forms keep their existing conversion behavior.
 #' Existing compact-month calendar handling keeps its prior precedence.
@@ -15,7 +20,9 @@
 #' 
 #' @param data A `data.frame`.
 #' @param na_strings A character vector of strings to be interpreted as `NA`. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
-#' @param num_threshold Numeric between 0 and 1. The proportion of valid numbers required to convert a column to numeric. Default is `0.95`.
+#' @param num_threshold Numeric between 0 and 1. The minimum matching fraction
+#' for the existing numeric, date and logical inference paths. Default is `0.95`.
+#' Nonmatching observations can become missing; this is not a literal-text lock.
 #' @return A `data.frame` with inferred data types.
 #' 
 #' @examples
