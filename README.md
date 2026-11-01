@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license">
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
-<p><a href="#quick-start">Quick Start</a> | <a href="#agent-workflow">Agent Workflow</a> | <a href="#three-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
+<p><a href="#quick-start">Quick Start</a> | <a href="#agent-workflow">Agent Workflow</a> | <a href="#four-small-examples">Examples</a> | <a href="#contact">Contact</a></p>
 </div>
 
 ## Clean With Code. Think With AI.
@@ -104,7 +104,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.132.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.133.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -145,7 +145,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. Preview is off by default, so the tool
 response does not automatically echo the input table into model context.
 
-Install the matching **v0.2.132 public source package** first. The launcher
+Install the matching **v0.2.133 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 
@@ -168,7 +168,7 @@ send the same object on standard input, then close that input stream:
 }
 ```
 
-This request uses one of the three fictional demos, not an additional dataset.
+This request uses one of the four fictional demos, not an additional dataset.
 For another source, declare its own missing markers and choose its intended
 Excel `sheet` or ZIP `archive_member`. All paths are relative to the process
 working directory, including requests read from files.
@@ -176,7 +176,7 @@ working directory, including requests read from files.
 | Interface | Contract |
 | --- | --- |
 | Input | One local tabular file, a new output directory and explicit `na_strings`. Unknown keys, URLs and network-share paths are rejected. |
-| Discovery | `describe` returns the JSON request schema, limits, result fields and exit codes. |
+| Discovery | `describe` returns the schema, limits, result fields, exit codes and four fictional example request templates. |
 | Output | Exactly one JSON response on stdout. Reader chatter goes to stderr; bounded warning messages are retained in the response. |
 | Full results | `artifacts` names the cleaned RDS, convenience CSV, audit CSV and complete column metadata JSON. |
 | Preview | Off by default. Opt in with `preview_rows`; limits are 10 rows, 20 columns and 160 characters per displayed label or value. |
@@ -187,6 +187,13 @@ On success, `status` is `"ok"`, with `row_count`, `column_count`,
 counts and artifact paths; read only the data needed for the question.
 A preview, path, warning or audit can contain sensitive caller information.
 Redact it or keep it local unless sharing with the selected model is authorized.
+
+For a first job, select an entry from `tool.examples` in the `describe` response
+and use its `request` object. Each template names an installed demo file and its
+missing markers; the subtotal example also enables pivoting. Choose a new
+`output_dir` before running or repeating a job. `describe` does not read caller
+tables or write files. Its installed demo paths can identify your local environment,
+so keep the response local unless sharing it is authorized.
 
 <details>
 <summary>Installed entry point, limits and exit codes</summary>
@@ -233,17 +240,18 @@ model, and sends no files to an AI service.
 
 </details>
 
-## Three Small Examples
+## Four Small Examples
 
 | CSV | Try it for |
 | --- | --- |
 | [Numbers](inst/extdata/demo_01_numbers.csv) | Grouped amounts, negatives and leading-zero codes |
 | [Dates](inst/extdata/demo_02_dates.csv) | Calendar dates and missing readings |
 | [Subtotals](inst/extdata/demo_03_subtotals.csv) | Total-row removal and wide-to-long reshaping |
+| [Missing Tokens](inst/extdata/demo_04_missing_tokens.csv) | Explicit missing-marker selection without changing genuine zeros |
 
-Exactly three fictional CSVs, each with three input records. No personal
+Exactly four fictional CSVs, each with three input records. No personal
 records, development datasets or regression fixtures are distributed.
-See the [example guide](vignettes/TidyPanel_introduction.Rmd) for all three workflows.
+See the [example guide](vignettes/TidyPanel_introduction.Rmd) for all four workflows.
 
 <details>
 <summary>Cleaning notes and supported-layout boundaries</summary>

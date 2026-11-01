@@ -1,8 +1,8 @@
 ---
-title: "Three Small TidyPanel Examples"
+title: "Four Small TidyPanel Examples"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Three Small TidyPanel Examples}
+  %\VignetteIndexEntry{Four Small TidyPanel Examples}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(TidyPanel)
 ```
 
-The three bundled CSV files are fictional examples with three input rows each.
+The four bundled CSV files are fictional examples with three input rows each.
 They contain no personal records or development datasets.
 
 ## Numbers
@@ -53,5 +53,25 @@ panel$audit
 ```
 
 The total row is excluded and the two yearly columns become a long table.
+
+## Caller-Declared Missing Tokens
+
+```{r missing-tokens}
+missing_tokens <- read_messy_panel(
+  system.file(
+    "extdata", "demo_04_missing_tokens.csv", package = "TidyPanel", mustWork = TRUE
+  ),
+  na_strings = "MISSING"
+)
+missing_tokens
+```
+
+The fictional token `MISSING` becomes a missing reading because it is explicitly
+declared. The zero reading stays zero, and record codes remain literal text.
+Choose missing markers from your own source's definitions, not this example.
+
+Agents can run `Rscript --vanilla exec/tidypanel.R describe` to obtain all four
+example request templates, including their installed input paths and options.
+Choose a new output directory for each job; example discovery creates no files.
 
 For your own table, supply its file path instead of a bundled example.

@@ -1,4 +1,13 @@
-# Release (v0.2.132)
+# Release (v0.2.133)
+
+Adds a fourth independently invented, three-record CSV demonstration for explicit
+missing-token selection. The JSON describe response now includes all four example
+request templates with installed input paths, explicit missing markers, pivot
+choices and previews disabled. Discovery does not read caller tables or write
+files. Existing request keys, result contracts and cleaning algorithms are unchanged.
+No development corpus, regression fixtures or private cleaning stages are included.
+
+## Previous Compact-Code Maintenance
 
 Mixed compact digit/letter columns with leading-zero evidence retain their text
 in the reader and standalone inference, including letter-first tokens. This
@@ -54,9 +63,10 @@ Established row-selection rules are unchanged.
 Unsupported slash-dated series exports now require a separately prepared named
 observation table instead of merging metadata into column labels.
 
-This release includes reviewed baseline cleaning fixes and three independently
+This release includes reviewed baseline cleaning fixes and four independently
 invented demonstrations, each with three fictional input records. Examples
-cover numbers, dates, and subtotal rows with optional wide-to-long reshaping.
+cover numbers, dates, subtotal rows with optional wide-to-long reshaping, and
+caller-declared missing tokens.
 Additional aggregate-table regressions were added to the separate validation
 suite. No development corpus or validation material is distributed.
 
@@ -64,12 +74,13 @@ Baseline fixes preserve clock precision, complete date lexemes, explicit
 identifier suffixes, literal quality flags, and unit-qualified precipitation
 totals. Fractional serial days are not silently reduced to dates.
 
-This release ships exactly three small fictional CSV demonstrations. Training
+This release ships exactly four small fictional CSV demonstrations. Training
 data, validation datasets, regression fixtures, and development test sources
 are not included. Regression validation is performed separately before release.
 
-The examples demonstrate numeric cleaning, calendar dates, and subtotal removal
-with optional wide-to-long reshaping. No personal records are distributed.
+The examples demonstrate numeric cleaning, calendar dates, subtotal removal
+with optional wide-to-long reshaping, and explicit missing-token selection.
+No personal records are distributed.
 
 Cleaning fixes retain measurement labels, paired free/total measurements, and
 complete headerless categorical records. Numeric report sections must be

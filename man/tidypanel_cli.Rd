@@ -13,6 +13,8 @@ tidypanel_cli(args = commandArgs(trailingOnly = TRUE), protected_roots = charact
 \details{
 Run \code{describe} for the JSON request schema. Select one local file and a new output directory with an existing parent. Explicitly supply \code{na_strings} from the source declaration. Only public reader options are exposed. Preview values are opt-in and may contain sensitive data.
 
+The description also includes four fictional example request templates with installed input paths and explicit options. It does not read caller tables or create output directories. Choose a new output directory before reuse. Installed paths may identify a caller's local environment; keep them local unless sharing is authorized.
+
 The adapter writes full cleaned R objects, a convenience CSV, a tabular audit and column metadata. CSV does not preserve every R type or missing-value distinction. The RDS file is for compatible trusted R use. A failed write can leave a partial new output directory; it is not deleted or reused. The audit is not a complete cell-by-cell history. This interface inherits the caller's filesystem permissions and is not a sandbox.
 
 Use the bundled \code{exec/tidypanel.R} launcher with \code{Rscript --vanilla}. It requires the matching installed public source edition and exits with the returned status. Cleaner output other than the JSON response is directed to standard error. Warnings are recorded in the response, with bounded messages.

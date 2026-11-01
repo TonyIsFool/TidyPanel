@@ -16,6 +16,9 @@
 #' the source. Preview values are opt-in. CSV is a convenience export, not a
 #' lossless type or missing-value interchange format. Failed writes can leave a
 #' partial new output directory; it is not deleted or reused.
+#' The description includes four fictional example request templates, with
+#' installed input paths and explicit options. It does not read caller tables
+#' or create output directories. Choose a new output directory before reuse.
 #' @examples
 #' \dontrun{
 #' tidypanel_cli("describe")
@@ -65,7 +68,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
             utils::write.csv(result$data, artifacts$csv, row.names = FALSE, na = "", fileEncoding = "UTF-8")
             utils::write.csv(result$audit, artifacts$audit, row.names = FALSE, na = "", fileEncoding = "UTF-8")
             metadata <- list(
-                schema_version = "1.0", package_version = "0.2.132",
+                schema_version = "1.0", package_version = "0.2.133",
                 row_count = nrow(result$data), column_count = ncol(result$data),
                 columns = lapply(seq_len(ncol(result$data)), function(i) list(
                     index = i, name = names(result$data)[[i]],
@@ -79,7 +82,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
             writeLines(.tp_cli_json(metadata), artifacts$metadata, useBytes = TRUE)
             list(
                 schema_version = "1.0", status = "ok", command = "clean",
-                package_version = "0.2.132", row_count = nrow(result$data),
+                package_version = "0.2.133", row_count = nrow(result$data),
                 column_count = ncol(result$data), artifacts = artifacts,
                 preview = if (request$preview_rows == 0L) NULL else .tp_cli_preview(result$data, request$preview_rows, request$preview_columns, request$preview_chars),
                 audit_preview = .tp_cli_preview(result$audit, 8L, 2L, 160L)
@@ -122,16 +125,31 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
     path <- getNamespaceInfo(asNamespace("TidyPanel"), "path")
     metadata <- read.dcf(file.path(path, "DESCRIPTION"))
     if (!all(c("Version", "Config/TidyPanel/Edition") %in% colnames(metadata)) ||
-        metadata[1L, "Version"] != "0.2.132" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
+        metadata[1L, "Version"] != "0.2.133" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
         .tp_cli_abort("edition_mismatch", "Install the matching public source edition before using this interface.", 3L)
     }
 }
 
 .tp_cli_description <- function() {
     scalar <- function(type, ...) c(list(type = type), list(...))
+    examples <- lapply(list(
+        list(id = "numbers", title = "Numbers and literal codes", file = "demo_01_numbers.csv", markers = list("NA"), pivot = FALSE),
+        list(id = "dates", title = "Dates and missing readings", file = "demo_02_dates.csv", markers = list("NA"), pivot = FALSE),
+        list(id = "subtotals", title = "Subtotals and yearly columns", file = "demo_03_subtotals.csv", markers = list(), pivot = TRUE),
+        list(id = "missing_tokens", title = "Caller-declared missing tokens", file = "demo_04_missing_tokens.csv", markers = list("MISSING"), pivot = FALSE)
+    ), function(example) list(
+        id = example$id, title = example$title, file = example$file,
+        fictional = TRUE, input_records = 3L,
+        request = list(
+            input = system.file("extdata", example$file, package = "TidyPanel", mustWork = TRUE),
+            output_dir = paste0("../tidypanel-example-", example$id),
+            na_strings = example$markers, auto_pivot = example$pivot, preview_rows = 0L
+        )
+    ))
     list(
-        name = "tidypanel.clean", package_version = "0.2.132", edition = "public",
+        name = "tidypanel.clean", package_version = "0.2.133", edition = "public",
         description = "Clean one caller-selected local table with the public reader; keep full artifacts locally.",
+        examples = examples,
         request_schema = list(
             `$schema` = "https://json-schema.org/draft/2020-12/schema",
             type = "object", additionalProperties = FALSE,
