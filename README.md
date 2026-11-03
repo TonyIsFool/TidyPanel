@@ -5,7 +5,7 @@
 <p>
   <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
-  <a href="#validation-coverage"><img src="https://img.shields.io/badge/global_public_data-100%2B_validation_cases-167D68?style=flat-square" alt="100+ external-data validation cases using public data from around the world"></a>
+  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-130%2B_source_groups-167D68?style=flat-square" alt="130+ deduplicated public-data source groups in cumulative project validation"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
@@ -57,13 +57,13 @@ or automatic registration with every agent.
 
 ### Public Data From Around The World. Tested Beyond Toy Examples.
 
-| **100+** | **5** | **0** |
+| **130+** | **5** | **0** |
 | :---: | :---: | :---: |
-| External-data validation cases | Data domains | AI inference tokens for local cleaning |
+| Public-data source groups, deduplicated | Data domains | AI inference tokens for local cleaning |
 
-**Real-world tables, not just tidy demos.** Validation draws on public data from
-international organizations, national data portals and scientific services.
-It checks supported cleaning behavior and clear rejection of unsupported layouts.
+**Real-world tables, not just tidy demos.** Cumulative project validation draws on
+public data from international organizations, national data portals and scientific
+services. It covers cleaning checks and clear rejection of unsupported layouts.
 
 | Domain | Tables checked |
 | --- | --- |
@@ -73,11 +73,15 @@ It checks supported cleaning behavior and clear rejection of unsupported layouts
 | Transport and geography | Counts, schedules and coded reference tables |
 | Energy and industry | Consumption and production observations |
 
-**Counting rule:** 100+ refers to external-data validation cases, not 100+
-independent databases or a guarantee that every export from a source is supported.
-Different files, time windows and derived checks do not establish additional
-independent databases. The local cleaning step makes no model calls; agent
-messages and shared results can still consume tokens.
+**Counting rule:** source groups include databases, data services, repositories and
+research publishing projects. Repeated files, formats, stations and time windows
+from the same source count once; known redistributions are grouped upstream.
+Some sources are aggregations and may share underlying observations. This is
+project-level validation coverage, not a count of independent original databases
+or a compatibility guarantee for this simplified package.
+
+The local cleaning step makes no model calls; agent messages and shared results
+can still consume tokens.
 
 Four small fictional CSVs are included for a first run. Development datasets
 are not distributed.
