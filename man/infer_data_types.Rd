@@ -13,9 +13,13 @@ infer_data_types(
 \arguments{
 \item{data}{A \code{data.frame}.}
 
-\item{na_strings}{A character vector of strings to be interpreted as \code{NA}. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
+\item{na_strings}{A character vector without missing elements, containing strings
+to be interpreted as \code{NA}. An empty vector adds no caller-declared markers;
+existing built-in wrapped-marker handling still applies. Literal \code{NA} is retained
+in explicit two-letter ISO code fields when observed values match the code schema.}
 
-\item{num_threshold}{Numeric between 0 and 1. The minimum matching fraction
+\item{num_threshold}{One finite numeric value between 0 and 1, inclusive.
+The minimum matching fraction
 for the existing numeric, date and logical inference paths. Default is \code{0.95}.
 Nonmatching observations can become missing; this is not a literal-text lock.}
 }

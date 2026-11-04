@@ -19,8 +19,12 @@
 #' to protect literal `NA`; labels and contaminated profiles keep baseline behavior.
 #' 
 #' @param data A `data.frame`.
-#' @param na_strings A character vector of strings to be interpreted as `NA`. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
-#' @param num_threshold Numeric between 0 and 1. The minimum matching fraction
+#' @param na_strings A character vector without missing elements, containing strings
+#' to be interpreted as `NA`. An empty vector adds no caller-declared markers;
+#' existing built-in wrapped-marker handling still applies. Literal `NA` is retained
+#' in explicit two-letter ISO code fields when observed values match the code schema.
+#' @param num_threshold One finite numeric value between 0 and 1, inclusive.
+#' The minimum matching fraction
 #' for the existing numeric, date and logical inference paths. Default is `0.95`.
 #' Nonmatching observations can become missing; this is not a literal-text lock.
 #' @return A `data.frame` with inferred data types.
@@ -35,6 +39,17 @@
 #' @export
 #' @importFrom stringr str_trim
 infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.m", "NA", "null", "NULL", "."), num_threshold = 0.95) {
+    if (!is.data.frame(data)) {
+        stop("data must be a data.frame.", call. = FALSE)
+    }
+    if (!is.character(na_strings) || !is.null(dim(na_strings)) || anyNA(na_strings)) {
+        stop("na_strings must be a character vector without missing elements.", call. = FALSE)
+    }
+    if (!is.numeric(num_threshold) || is.complex(num_threshold) ||
+        length(num_threshold) != 1L || is.na(num_threshold) ||
+        !is.finite(num_threshold) || num_threshold < 0 || num_threshold > 1) {
+        stop("num_threshold must be one finite numeric value between 0 and 1.", call. = FALSE)
+    }
     is_identifier_column <- function(name) {
         normalized_name <- tolower(gsub("[^A-Za-z0-9]+", "_", .separate_identifier_suffix(name)))
         grepl("(^|_)(id|identifier|objectid|object_id|fid|code|key|uuid|guid|dguid|isbn|issn|upc|barcode|vector|coordinate|fips|geofips|station|state|county|sumlev|region|division|phone|telephone|mobile|fax)(_|$)|(^|_)ident$", normalized_name)

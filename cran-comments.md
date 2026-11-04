@@ -1,4 +1,13 @@
-# Release (v0.2.133)
+# Release (v0.2.134)
+
+Standalone type inference now rejects unsupported input objects, missing-marker
+vectors with missing elements, and thresholds that are not one finite numeric
+value in [0, 1]. Invalid arguments fail before coercion. Valid-input inference,
+reader behavior and JSON request/result fields are unchanged. The public launcher
+and reported package version match this patch. Exactly four fictional
+three-record CSV demonstrations remain bundled; no datasets are added.
+
+## Previous Four-Example Update
 
 Adds a fourth independently invented, three-record CSV demonstration for explicit
 missing-token selection. The JSON describe response now includes all four example
