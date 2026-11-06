@@ -193,6 +193,8 @@ clean_variable_names <- function(data) {
       "stname" = "state_name",
       "ctyname" = "county_name"
   )
+  all_targets <- unique(c(unname(dict), names(regex_dict)))
+  target_lengths <- nchar(all_targets)
   
   for (i in seq_along(clean_names)) {
     if (is.na(clean_names[i]) || clean_names[i] == "") {
@@ -237,24 +239,24 @@ clean_variable_names <- function(data) {
     }
     # 2.3 Levenshtein Typo Tolerance (Phase 5)
     if (!matched && !is_generated_suffix && !is_identifier_suffix && !is_population_income && nchar(clean_names[i]) > 5) {
-      all_targets <- unique(c(unname(dict), names(regex_dict)))
       distances <- utils::adist(clean_names[i], all_targets, ignore.case = TRUE)[1, ]
-      min_dist <- min(distances)
-      transposed <- vapply(all_targets, function(target) {
-          if (nchar(target) != nchar(clean_names[i])) return(FALSE)
-          observed <- strsplit(clean_names[i], "", fixed = TRUE)[[1L]]
-          expected <- strsplit(target, "", fixed = TRUE)[[1L]]
-          changed <- which(observed != expected)
-          length(changed) == 2L && diff(changed) == 1L &&
-              identical(observed[changed], rev(expected[changed]))
-      }, logical(1))
       # Two arbitrary edits can turn valid measurements into unrelated labels.
-      if (min_dist <= 1) {
+      if (min(distances) <= 1) {
           clean_names[i] <- all_targets[which.min(distances)]
           matched <- TRUE
-      } else if (any(transposed)) {
-          clean_names[i] <- all_targets[which(transposed)[[1L]]]
-          matched <- TRUE
+      } else {
+          candidates <- all_targets[target_lengths == nchar(clean_names[i])]
+          observed <- strsplit(clean_names[i], "", fixed = TRUE)[[1L]]
+          transposed <- vapply(candidates, function(target) {
+              expected <- strsplit(target, "", fixed = TRUE)[[1L]]
+              changed <- which(observed != expected)
+              length(changed) == 2L && diff(changed) == 1L &&
+                  identical(observed[changed], rev(expected[changed]))
+          }, logical(1))
+          if (any(transposed)) {
+              clean_names[i] <- candidates[which(transposed)[[1L]]]
+              matched <- TRUE
+          }
       }
     }
     

@@ -68,7 +68,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
             utils::write.csv(result$data, artifacts$csv, row.names = FALSE, na = "", fileEncoding = "UTF-8")
             utils::write.csv(result$audit, artifacts$audit, row.names = FALSE, na = "", fileEncoding = "UTF-8")
             metadata <- list(
-                schema_version = "1.0", package_version = "0.2.134",
+                schema_version = "1.0", package_version = "0.2.135",
                 row_count = nrow(result$data), column_count = ncol(result$data),
                 columns = lapply(seq_len(ncol(result$data)), function(i) list(
                     index = i, name = names(result$data)[[i]],
@@ -82,7 +82,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
             writeLines(.tp_cli_json(metadata), artifacts$metadata, useBytes = TRUE)
             list(
                 schema_version = "1.0", status = "ok", command = "clean",
-                package_version = "0.2.134", row_count = nrow(result$data),
+                package_version = "0.2.135", row_count = nrow(result$data),
                 column_count = ncol(result$data), artifacts = artifacts,
                 preview = if (request$preview_rows == 0L) NULL else .tp_cli_preview(result$data, request$preview_rows, request$preview_columns, request$preview_chars),
                 audit_preview = .tp_cli_preview(result$audit, 8L, 2L, 160L)
@@ -125,7 +125,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
     path <- getNamespaceInfo(asNamespace("TidyPanel"), "path")
     metadata <- read.dcf(file.path(path, "DESCRIPTION"))
     if (!all(c("Version", "Config/TidyPanel/Edition") %in% colnames(metadata)) ||
-        metadata[1L, "Version"] != "0.2.134" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
+        metadata[1L, "Version"] != "0.2.135" || metadata[1L, "Config/TidyPanel/Edition"] != "public") {
         .tp_cli_abort("edition_mismatch", "Install the matching public source edition before using this interface.", 3L)
     }
 }
@@ -147,7 +147,7 @@ tidypanel_cli <- function(args = commandArgs(trailingOnly = TRUE),
         )
     ))
     list(
-        name = "tidypanel.clean", package_version = "0.2.134", edition = "public",
+        name = "tidypanel.clean", package_version = "0.2.135", edition = "public",
         description = "Clean one caller-selected local table with the public reader; keep full artifacts locally.",
         examples = examples,
         request_schema = list(

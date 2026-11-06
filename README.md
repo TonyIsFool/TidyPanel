@@ -126,7 +126,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.134.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.135.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -167,7 +167,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. Preview is off by default, so the tool
 response does not automatically echo the input table into model context.
 
-Install the matching **v0.2.134 public source package** first. The launcher
+Install the matching **v0.2.135 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 

@@ -1,4 +1,11 @@
-# Release (v0.2.134)
+# Release (v0.2.135)
+
+Column-name cleanup reuses its typo-matching targets across columns and checks
+adjacent letter swaps only when the existing edit-distance rule has no match.
+Matching rules, precedence, cleaned names and values are unchanged. The JSON
+schema and four fictional three-record demonstrations remain unchanged.
+
+## Previous Inference Input Checks
 
 Standalone type inference now rejects unsupported input objects, missing-marker
 vectors with missing elements, and thresholds that are not one finite numeric
