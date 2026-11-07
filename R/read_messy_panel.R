@@ -42,10 +42,10 @@
 #' @param archive_member Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.
 #' @param sheet Optional sheet name or index. If `NULL` (the default), it selects the largest usable data panel across all sheets. If `"ALL"`, parses and merges all sheets.
 #' @param na_strings Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. `NaN` is recognized in numeric contexts, not pure textual categories. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
-#' @param clean_vars Logical. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
-#' @param auto_pivot Logical. If `TRUE`, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (`time_period`, `value`).
-#' @param extract_all_blocks Logical. If `TRUE`, extracts all disjoint data tables on a sheet as a list of data frames. Default is `FALSE` (extracts only the largest block).
-#' @param return_audit Logical. If `TRUE`, returns a list containing `$data` (the cleaned data frame) and `$audit` (a detailed log of all algorithmic modifications made).
+#' @param clean_vars One nonmissing logical value. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
+#' @param auto_pivot One nonmissing logical value. If `TRUE`, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (`time_period`, `value`).
+#' @param extract_all_blocks One nonmissing logical value. If `TRUE`, extracts all disjoint data tables on a sheet as a list of data frames. Default is `FALSE` (extracts only the largest block).
+#' @param return_audit One nonmissing logical value. If `TRUE`, returns a list containing `$data` (the cleaned data frame) and `$audit` (a detailed log of all algorithmic modifications made).
 #'
 #' @return If `return_audit = FALSE`, a cleaned and standardized `data.frame`. 
 #' If `return_audit = TRUE`, a named list containing:
@@ -66,6 +66,14 @@
 #' @importFrom stats quantile
 #' @importFrom utils head read.csv read.table tail unzip
 read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "NA", "#N/A", "NULL", "null", "S", "D", "ND", "N/A", "?", "*", "**", "***", ".", "x", "c", "s", "z", "#VALUE!", "#REF!", "#DIV/0!", "#NUM!", "#NAME?", "none", "NR", "--", "---", "-999", "n.a.", "N.A.", "n/a", "Not Applicable", "\\N", "\u2026", "NaN", "na"), clean_vars = TRUE, auto_pivot = FALSE, return_audit = FALSE, extract_all_blocks = FALSE, archive_member = NULL) {
+  flag_options <- list(clean_vars = clean_vars, auto_pivot = auto_pivot,
+                       return_audit = return_audit, extract_all_blocks = extract_all_blocks)
+  for (option_name in names(flag_options)) {
+      option <- flag_options[[option_name]]
+      if (!is.logical(option) || length(option) != 1L || !is.null(dim(option)) || is.na(option)) {
+          stop(paste0(option_name, " must be one nonmissing logical value (TRUE or FALSE)."), call. = FALSE)
+      }
+  }
   audit_log <- list()
   is_df <- is.data.frame(file_path)
   is_csv <- FALSE
@@ -2677,7 +2685,6 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       
       list(success = TRUE, data = df, audit = audit_log)
     }, error = function(e) {
-          print(sys.calls())
           stop(e)
       }) # end withCallingHandlers
       }) # End lapply over blocks

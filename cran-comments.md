@@ -1,4 +1,12 @@
-# Release (v0.2.135)
+# Release (v0.2.136)
+
+The reader validates its four logical switches before processing input.
+Each switch requires one nonmissing TRUE or FALSE; invalid declarations fail
+with a concise parameter-specific error. Parser errors no longer print a
+diagnostic call stack. Valid-input cleaning rules, the JSON schema and the
+four fictional three-record demonstrations are unchanged.
+
+## Previous Column-Name Matching Maintenance
 
 Column-name cleanup reuses its typo-matching targets across columns and checks
 adjacent letter swaps only when the existing edit-distance rule has no match.

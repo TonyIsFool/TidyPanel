@@ -24,13 +24,13 @@ read_messy_panel(
 
 \item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. \code{NaN} is recognized in numeric contexts, not pure textual categories. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 
-\item{clean_vars}{Logical. If \code{TRUE} (default), standardizes variable names to snake_case using \code{clean_variable_names()}.}
+\item{clean_vars}{One nonmissing logical value. If \code{TRUE} (default), standardizes variable names to snake_case using \code{clean_variable_names()}.}
 
-\item{auto_pivot}{Logical. If \code{TRUE}, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (\code{time_period}, \code{value}).}
+\item{auto_pivot}{One nonmissing logical value. If \code{TRUE}, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (\code{time_period}, \code{value}).}
 
-\item{return_audit}{Logical. If \code{TRUE}, returns a list containing \verb{$data} (the cleaned data frame) and \verb{$audit} (a detailed log of all algorithmic modifications made).}
+\item{return_audit}{One nonmissing logical value. If \code{TRUE}, returns a list containing \verb{$data} (the cleaned data frame) and \verb{$audit} (a detailed log of all algorithmic modifications made).}
 
-\item{extract_all_blocks}{Logical. If \code{TRUE}, extracts all disjoint data tables on a sheet as a list of data frames. Default is \code{FALSE} (extracts only the largest block).}
+\item{extract_all_blocks}{One nonmissing logical value. If \code{TRUE}, extracts all disjoint data tables on a sheet as a list of data frames. Default is \code{FALSE} (extracts only the largest block).}
 
 \item{archive_member}{Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.}
 }
