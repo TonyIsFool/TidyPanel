@@ -43,6 +43,8 @@ Existing compact-month calendar handling keeps its prior precedence.
 Exact \code{ident} fields and \code{_ident} suffixes retain text. The exact normalized
 \code{iso_country} alias needs two distinct other uppercase two-letter observations
 to protect literal \code{NA}; labels and contaminated profiles keep baseline behavior.
+Declared missing-marker normalization is reused within a call; matching rules
+and conversion thresholds are unchanged.
 }
 \examples{
 # Clean financial placeholders and coerce to numeric

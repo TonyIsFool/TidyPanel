@@ -126,7 +126,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.136.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.137.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -167,7 +167,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. Preview is off by default, so the tool
 response does not automatically echo the input table into model context.
 
-Install the matching **v0.2.136 public source package** first. The launcher
+Install the matching **v0.2.137 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 
@@ -353,6 +353,13 @@ observation table; the simplified public reader does not combine their sections.
 
 Large-table subtotal checks retain the existing row-selection rules while
 avoiding repeated per-record matching.
+
+In R, the reader requires `na_strings` to be a character vector without missing
+elements or dimensions, or `NULL` as the existing no-marker alias. Invalid
+declarations fail before input is read. JSON requests still use arrays;
+`[]` declares no caller markers.
+Standalone inference reuses missing-marker normalization within each call;
+matching rules, conversion thresholds and the four examples are unchanged.
 
 Row detection classifies bounded chunks rather than retaining several full-table
 logical masks. Auxiliary header counters are also limited to the current row chunk.

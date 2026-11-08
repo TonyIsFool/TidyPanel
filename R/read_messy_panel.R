@@ -41,7 +41,7 @@
 #' or recognized identifier fields. A custom `na_strings` can exclude this marker.
 #' @param archive_member Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.
 #' @param sheet Optional sheet name or index. If `NULL` (the default), it selects the largest usable data panel across all sheets. If `"ALL"`, parses and merges all sheets.
-#' @param na_strings Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. `NaN` is recognized in numeric contexts, not pure textual categories. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
+#' @param na_strings Character vector without missing elements or dimensions, or `NULL`. Strings to interpret as missing values. An empty vector or `NULL` declares no caller markers; built-in handling still applies. Supports complex missing-value lexicons. `NaN` is recognized in numeric contexts, not pure textual categories. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
 #' @param clean_vars One nonmissing logical value. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
 #' @param auto_pivot One nonmissing logical value. If `TRUE`, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (`time_period`, `value`).
 #' @param extract_all_blocks One nonmissing logical value. If `TRUE`, extracts all disjoint data tables on a sheet as a list of data frames. Default is `FALSE` (extracts only the largest block).
@@ -73,6 +73,10 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       if (!is.logical(option) || length(option) != 1L || !is.null(dim(option)) || is.na(option)) {
           stop(paste0(option_name, " must be one nonmissing logical value (TRUE or FALSE)."), call. = FALSE)
       }
+  }
+  if (!is.null(na_strings) &&
+      (!is.character(na_strings) || !is.null(dim(na_strings)) || anyNA(na_strings))) {
+      stop("na_strings must be NULL or a character vector without missing elements.", call. = FALSE)
   }
   audit_log <- list()
   is_df <- is.data.frame(file_path)

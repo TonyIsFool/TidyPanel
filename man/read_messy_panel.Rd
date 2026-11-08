@@ -22,7 +22,7 @@ read_messy_panel(
 
 \item{sheet}{Optional sheet name or index. If \code{NULL} (the default), it selects the largest usable data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
 
-\item{na_strings}{Character vector. Strings to interpret as missing values. Supports complex missing-value lexicons. \code{NaN} is recognized in numeric contexts, not pure textual categories. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
+\item{na_strings}{Character vector without missing elements or dimensions, or \code{NULL}. Strings to interpret as missing values. An empty vector or \code{NULL} declares no caller markers; built-in handling still applies. Supports complex missing-value lexicons. \code{NaN} is recognized in numeric contexts, not pure textual categories. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 
 \item{clean_vars}{One nonmissing logical value. If \code{TRUE} (default), standardizes variable names to snake_case using \code{clean_variable_names()}.}
 

@@ -1,4 +1,14 @@
-# Release (v0.2.136)
+# Release (v0.2.137)
+
+The reader rejects missing-marker declarations other than character vectors
+without missing elements or dimensions or the existing NULL no-marker alias.
+Standalone inference lazily reuses
+normalized markers for ordinary per-column missing-token matching.
+Matching rules, valid-input results, conversion thresholds, JSON contracts and
+the four fictional three-record demonstrations remain unchanged. No datasets
+or additional cleaning-format support are included.
+
+## Previous Reader Option Checks
 
 The reader validates its four logical switches before processing input.
 Each switch requires one nonmissing TRUE or FALSE; invalid declarations fail

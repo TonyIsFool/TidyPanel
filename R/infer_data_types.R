@@ -17,6 +17,8 @@
 #' Exact `ident` fields and `_ident` suffixes retain text. The exact normalized
 #' `iso_country` alias needs two distinct other uppercase two-letter observations
 #' to protect literal `NA`; labels and contaminated profiles keep baseline behavior.
+#' Declared missing-marker normalization is reused within a call; matching rules
+#' and conversion thresholds are unchanged.
 #' 
 #' @param data A `data.frame`.
 #' @param na_strings A character vector without missing elements, containing strings
@@ -66,13 +68,15 @@ infer_data_types <- function(data, na_strings = c("-", "N/A", "n/a", "n.m.", "n.
     }
 
     
+    folded_na_strings <- NULL
     for (i in seq_along(data)) {
         if (is.character(data[[i]])) {
             col_data <- stringr::str_trim(data[[i]])
             
             # Replace defined NA strings with actual NA
             wrapped_missing <- !is.na(col_data) & grepl("^\\((NA|N/A|NULL|ND)\\)$", col_data, ignore.case = TRUE)
-            is_na_string <- tolower(col_data) %in% tolower(na_strings) | wrapped_missing
+            if (is.null(folded_na_strings)) folded_na_strings <- tolower(na_strings)
+            is_na_string <- tolower(col_data) %in% folded_na_strings | wrapped_missing
             if (any(col_data == "NA", na.rm = TRUE) &&
                 .is_iso_alpha2_field(col_data, names(data)[i], na_strings)) {
                 is_na_string[!is.na(col_data) & col_data == "NA"] <- FALSE
