@@ -210,6 +210,11 @@ counts and artifact paths; read only the data needed for the question.
 A preview, path, warning or audit can contain sensitive caller information.
 Redact it or keep it local unless sharing with the selected model is authorized.
 
+For type-preserving use in trusted R workflows, read `readRDS(artifacts$rds)$data`.
+When importing `artifacts$csv`, use the column metadata to load identifier
+columns as text. For example, the Numbers demo keeps `001` in `record_code`
+with `read.csv(artifacts$csv, colClasses = c(record_code = "character"))`.
+
 For a first job, select an entry from `tool.examples` in the `describe` response
 and use its `request` object. Each template names an installed demo file and its
 missing markers; the subtotal example also enables pivoting. Choose a new
