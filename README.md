@@ -25,7 +25,8 @@ its context on the question, not on rewriting routine cleanup code.
 | Optional wide-to-long reshaping | Local artifacts and an operation audit |
 | A repeatable command-line workflow | One JSON request and one JSON response |
 
-Full observations stay in local files. Previews are **off by default**. Agent
+Full observations stay in local files. **Data-row previews are off by default**;
+the response can still include an audit preview, paths and warnings. Agent
 instructions, tool calls and content sent to a model can still consume tokens;
 total savings depend on the workflow. Review results before analysis.
 
@@ -164,8 +165,8 @@ to keep wide columns.
 
 Call the cleaner, then reason over the result. TidyPanel performs the supported
 cleanup locally without invoking a model; your agent chooses the task and how
-much of the resulting data to read. Preview is off by default, so the tool
-response does not automatically echo the input table into model context.
+much of the resulting data to read. The data preview is off by default;
+`preview_rows` does not suppress the separate audit preview.
 
 Install the matching **v0.2.137 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
@@ -201,7 +202,8 @@ working directory, including requests read from files.
 | Discovery | `describe` returns the schema, limits, result fields, exit codes and four fictional example request templates. |
 | Output | Exactly one JSON response on stdout. Reader chatter goes to stderr; bounded warning messages are retained in the response. |
 | Full results | `artifacts` names the cleaned RDS, convenience CSV, audit CSV and complete column metadata JSON. |
-| Preview | Off by default. Opt in with `preview_rows`; limits are 10 rows, 20 columns and 160 characters per displayed label or value. |
+| Data preview | Off by default. Opt in with `preview_rows`; limits are 10 rows, 20 columns and 160 characters per displayed label or value. |
+| Audit preview | Included separately on success, with at most 8 audit rows, 2 columns and 160 characters per displayed label or value. |
 | Failure | A nonzero exit code and `status: "error"`. Do not treat partial output directories as successful jobs. |
 
 On success, `status` is `"ok"`, with `row_count`, `column_count`,
