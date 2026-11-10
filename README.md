@@ -196,6 +196,11 @@ For another source, declare its own missing markers and choose its intended
 Excel `sheet` or ZIP `archive_member`. All paths are relative to the process
 working directory, including requests read from files.
 
+Pass `.csv.gz`, `.tsv.gz`, `.txt.gz` or `.rdb.gz` directly as `input`;
+manual extraction is not required. Keep the compressed source instead of
+creating a separate unpacked input copy. `archive_member` selects a file
+inside a ZIP archive, not a gzip stream.
+
 | Interface | Contract |
 | --- | --- |
 | Input | One local tabular file, a new output directory and explicit `na_strings`. Unknown keys, URLs and network-share paths are rejected. |
