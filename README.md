@@ -242,6 +242,17 @@ Pass that returned path to `Rscript --vanilla`. R callers can alternatively
 use `TidyPanel::tidypanel_cli()`; it returns an exit status without terminating R.
 The bundled launcher exits with that status.
 
+If the launcher returns `edition_mismatch`, check the package selected by the
+same Rscript environment:
+
+```sh
+Rscript --vanilla -e "p <- find.package('TidyPanel'); print(read.dcf(file.path(p, 'DESCRIPTION'), fields = c('Version', 'Config/TidyPanel/Edition')))"
+```
+
+For this launcher, the version must be `0.2.137` and the edition `public`.
+If no package is found or either value differs, install the matching public
+source package into the library used by that Rscript session.
+
 | Exit code | Meaning |
 | --- | --- |
 | 0 | Completed successfully; review any warnings. |
