@@ -264,6 +264,9 @@ source package into the library used by that Rscript session.
 Requests are limited to 65,536 bytes. Only options listed by `describe` are
 accepted. `na_strings: []` declares no caller missing tokens. `sheet` selects
 one name or positive index, not `"ALL"`. `auto_pivot` defaults to false.
+For one missing marker, send an array such as `"na_strings": ["NA"]`,
+not a bare string. With `jsonlite::toJSON(..., auto_unbox = TRUE)`, use
+`na_strings = list("NA")` to keep the single item in a JSON array.
 `preview_rows` defaults to 0; `preview_columns` defaults to 8 and
 `preview_chars` to 80. Preview cells are text, with null for missing positions;
 their column indices map to the complete schema in the metadata artifact.
