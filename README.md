@@ -201,6 +201,11 @@ manual extraction is not required. Keep the compressed source instead of
 creating a separate unpacked input copy. `archive_member` selects a file
 inside a ZIP archive, not a gzip stream.
 
+If a ZIP contains multiple supported tables, list its entries with
+`utils::unzip("tables.zip", list = TRUE)$Name` and pass the exact entry name
+as `archive_member`, including any folder prefix (for example,
+`"tables/data.csv"`). Leave it unset for a ZIP with exactly one supported table.
+
 | Interface | Contract |
 | --- | --- |
 | Input | One local tabular file, a new output directory and explicit `na_strings`. Unknown keys, URLs and network-share paths are rejected. |
