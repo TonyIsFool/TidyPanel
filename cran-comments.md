@@ -1,4 +1,10 @@
-# Release (v0.2.137)
+# Release (v0.2.138)
+
+The reader rejects a ZIP member selection on non-ZIP inputs and reports when
+a ZIP contains no supported table. Supported member selection and valid-input
+cleaning are unchanged, along with the JSON schema and four fictional examples.
+
+## Previous Missing-Marker Maintenance (v0.2.137)
 
 The reader rejects missing-marker declarations other than character vectors
 without missing elements or dimensions or the existing NULL no-marker alias.

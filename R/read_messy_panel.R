@@ -39,7 +39,9 @@
 #' are retained rather than discarded as incomplete records or subtotal columns.
 #' Lowercase `na` becomes missing in numeric contexts, not pure text categories
 #' or recognized identifier fields. A custom `na_strings` can exclude this marker.
-#' @param archive_member Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.
+#' @param archive_member Optional exact entry name, including any folder prefix,
+#' for a ZIP archive. Non-ZIP inputs do not accept this option. ZIP archives with
+#' exactly one supported tabular member are read automatically.
 #' @param sheet Optional sheet name or index. If `NULL` (the default), it selects the largest usable data panel across all sheets. If `"ALL"`, parses and merges all sheets.
 #' @param na_strings Character vector without missing elements or dimensions, or `NULL`. Strings to interpret as missing values. An empty vector or `NULL` declares no caller markers; built-in handling still applies. Supports complex missing-value lexicons. `NaN` is recognized in numeric contexts, not pure textual categories. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
 #' @param clean_vars One nonmissing logical value. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
@@ -80,6 +82,9 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
   }
   audit_log <- list()
   is_df <- is.data.frame(file_path)
+  if (is_df && !is.null(archive_member)) {
+      stop("archive_member can only select a ZIP member.", call. = FALSE)
+  }
   is_csv <- FALSE
   is_gzip <- FALSE
   is_zip <- FALSE
@@ -108,8 +113,11 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
       if (file_extension == "zip" || zip_detected_by_signature) {
           archive_files <- utils::unzip(file_path, list = TRUE)$Name
           candidates <- archive_files[grepl("\\.(csv|tsv|txt|rdb)(\\.gz)?$", archive_files, ignore.case = TRUE)]
+          if (!length(candidates)) {
+              stop("ZIP archive contains no supported tabular members (CSV, TSV, TXT, or RDB, optionally gzip-compressed).", call. = FALSE)
+          }
           if (is.null(archive_member)) {
-              if (length(candidates) != 1L) {
+              if (length(candidates) > 1L) {
                   stop("ZIP archives with multiple tabular members require archive_member to name the file to clean.")
               }
               archive_member <- candidates[[1L]]
@@ -124,6 +132,8 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           on.exit(unlink(extract_dir, recursive = TRUE), add = TRUE)
           file_name <- tolower(basename(file_path))
           is_zip <- TRUE
+      } else if (!is.null(archive_member)) {
+          stop("archive_member can only select a ZIP member.", call. = FALSE)
       }
       is_gzip <- grepl("\\.gz$", file_name)
       ext <- tolower(tools::file_ext(if (is_gzip) sub("\\.gz$", "", file_name) else file_name))

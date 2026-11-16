@@ -32,7 +32,7 @@ read_messy_panel(
 
 \item{extract_all_blocks}{One nonmissing logical value. If \code{TRUE}, extracts all disjoint data tables on a sheet as a list of data frames. Default is \code{FALSE} (extracts only the largest block).}
 
-\item{archive_member}{Optional member name for a ZIP archive containing multiple tabular files. ZIP archives with exactly one supported tabular member are read automatically.}
+\item{archive_member}{Optional exact entry name, including any folder prefix, for a ZIP archive. Non-ZIP inputs do not accept this option. ZIP archives with exactly one supported tabular member are read automatically.}
 }
 \value{
 If \code{return_audit = FALSE}, a cleaned and standardized \code{data.frame}.
