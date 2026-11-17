@@ -127,7 +127,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.138.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.139.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -168,7 +168,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. The data preview is off by default;
 `preview_rows` does not suppress the separate audit preview.
 
-Install the matching **v0.2.138 public source package** first. The launcher
+Install the matching **v0.2.139 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 
@@ -255,7 +255,7 @@ same Rscript environment:
 Rscript --vanilla -e "p <- find.package('TidyPanel'); print(read.dcf(file.path(p, 'DESCRIPTION'), fields = c('Version', 'Config/TidyPanel/Edition')))"
 ```
 
-For this launcher, the version must be `0.2.138` and the edition `public`.
+For this launcher, the version must be `0.2.139` and the edition `public`.
 If no package is found or either value differs, install the matching public
 source package into the library used by that Rscript session.
 
@@ -269,7 +269,7 @@ source package into the library used by that Rscript session.
 
 Requests are limited to 65,536 bytes. Only options listed by `describe` are
 accepted. `na_strings: []` declares no caller missing tokens. `sheet` selects
-one name or positive index, not `"ALL"`. `auto_pivot` defaults to false.
+one name or positive whole-number index, not `"ALL"`. `auto_pivot` defaults to false.
 For one missing marker, send an array such as `"na_strings": ["NA"]`,
 not a bare string. With `jsonlite::toJSON(..., auto_unbox = TRUE)`, use
 `na_strings = list("NA")` to keep the single item in a JSON array.

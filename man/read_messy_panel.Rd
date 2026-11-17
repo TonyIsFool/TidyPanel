@@ -20,7 +20,7 @@ read_messy_panel(
 \arguments{
 \item{file_path}{Character string. A path to an Excel, CSV, TSV, TXT, RDB, ZIP, or gzip-compressed CSV, TSV, TXT, or RDB file.}
 
-\item{sheet}{Optional sheet name or index. If \code{NULL} (the default), it selects the largest usable data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
+\item{sheet}{Optional Excel sheet name or positive whole-number index. If \code{NULL} (the default), it selects the largest usable data panel across all sheets. If \code{"ALL"}, parses and merges all sheets.}
 
 \item{na_strings}{Character vector without missing elements or dimensions, or \code{NULL}. Strings to interpret as missing values. An empty vector or \code{NULL} declares no caller markers; built-in handling still applies. Supports complex missing-value lexicons. \code{NaN} is recognized in numeric contexts, not pure textual categories. Literal \code{NA} is retained in explicit two-letter ISO code fields when observed values match the code schema.}
 

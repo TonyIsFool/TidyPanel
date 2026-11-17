@@ -1,4 +1,11 @@
-# Release (v0.2.138)
+# Release (v0.2.139)
+
+The R reader rejects fractional and other invalid numeric Excel sheet indices
+before reading a worksheet, rather than silently truncating them or passing
+them to the Excel parser. Valid worksheet selection, the Agent request schema
+and the four fictional examples are unchanged.
+
+## Previous ZIP Selection Maintenance (v0.2.138)
 
 The reader rejects a ZIP member selection on non-ZIP inputs and reports when
 a ZIP contains no supported table. Supported member selection and valid-input

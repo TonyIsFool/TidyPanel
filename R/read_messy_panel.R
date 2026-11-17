@@ -42,7 +42,7 @@
 #' @param archive_member Optional exact entry name, including any folder prefix,
 #' for a ZIP archive. Non-ZIP inputs do not accept this option. ZIP archives with
 #' exactly one supported tabular member are read automatically.
-#' @param sheet Optional sheet name or index. If `NULL` (the default), it selects the largest usable data panel across all sheets. If `"ALL"`, parses and merges all sheets.
+#' @param sheet Optional Excel sheet name or positive whole-number index. If `NULL` (the default), it selects the largest usable data panel across all sheets. If `"ALL"`, parses and merges all sheets.
 #' @param na_strings Character vector without missing elements or dimensions, or `NULL`. Strings to interpret as missing values. An empty vector or `NULL` declares no caller markers; built-in handling still applies. Supports complex missing-value lexicons. `NaN` is recognized in numeric contexts, not pure textual categories. Literal `NA` is retained in explicit two-letter ISO code fields when observed values match the code schema.
 #' @param clean_vars One nonmissing logical value. If `TRUE` (default), standardizes variable names to snake_case using `clean_variable_names()`.
 #' @param auto_pivot One nonmissing logical value. If `TRUE`, attempts to reshape wide temporal columns (e.g., FY2021, Q1_2022) into a long format (`time_period`, `value`).
@@ -142,6 +142,12 @@ read_messy_panel <- function(file_path, sheet = NULL, na_strings = c("", ":", "N
           stop("TidyPanel core supports data.frames and Excel, CSV, TSV, or TXT tabular files only (with RDB and gzip-compressed CSV, TSV, TXT, and RDB files also supported).")
       }
       is_csv <- ext %in% c("csv", "tsv", "txt", "rdb")
+  }
+
+  if (!is_df && !is_csv && is.numeric(sheet) &&
+      (!length(sheet) ||
+       any(!is.finite(sheet) | sheet < 1 | sheet > .Machine$integer.max | sheet != floor(sheet)))) {
+      stop("Numeric Excel sheet indices must be finite positive integers within the supported range.", call. = FALSE)
   }
 
   if (is.character(sheet) && length(sheet) == 1 && toupper(sheet) == "ALL") {
