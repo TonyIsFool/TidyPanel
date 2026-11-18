@@ -20,6 +20,7 @@ unit declarations (e.g., "Revenue (in millions)", "Assets ($k)", "Employees ('00
 It automatically multiplies the numeric values in the corresponding columns by the
 detected multiplier (1,000, 1,000,000, etc.) and optionally strips the unit
 declaration from the column name.
+Nonnumeric columns with no convertible observations keep their original names.
 }
 \examples{
 # Scale columns declared in millions and thousands

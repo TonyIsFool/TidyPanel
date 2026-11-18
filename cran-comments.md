@@ -1,4 +1,10 @@
-# Release (v0.2.139)
+# Release (v0.2.140)
+
+The standalone unit-normalization helper keeps the original headers of
+nonnumeric columns when no observations can be scaled. Existing scaling,
+the reader, the Agent request schema and the four fictional examples are unchanged.
+
+## Previous Excel Index Maintenance (v0.2.139)
 
 The R reader rejects fractional and other invalid numeric Excel sheet indices
 before reading a worksheet, rather than silently truncating them or passing

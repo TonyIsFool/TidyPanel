@@ -6,6 +6,7 @@
 #' It automatically multiplies the numeric values in the corresponding columns by the 
 #' detected multiplier (1,000, 1,000,000, etc.) and optionally strips the unit 
 #' declaration from the column name.
+#' Nonnumeric columns with no convertible observations keep their original names.
 #' 
 #' @param data A `data.frame`. The data frame to be normalized.
 #' @param strip_units Logical. If `TRUE`, removes the unit declarations from the column names. Default is `TRUE`.
@@ -57,12 +58,10 @@ normalize_units <- function(data, strip_units = TRUE) {
                 data[[i]] <- data[[i]] * multiplier
             } else {
                 num_vals <- suppressWarnings(as.numeric(as.character(data[[i]])))
-                if (!all(is.na(num_vals[!is.na(data[[i]])]))) {
-                     is_num_idx <- !is.na(num_vals)
-                     # Convert character to numeric for rows where it's valid
-                     data[[i]] <- as.character(data[[i]])
-                     data[[i]][is_num_idx] <- as.character(num_vals[is_num_idx] * multiplier)
-                }
+                if (all(is.na(num_vals[!is.na(data[[i]])]))) next
+                is_num_idx <- !is.na(num_vals)
+                data[[i]] <- as.character(data[[i]])
+                data[[i]][is_num_idx] <- as.character(num_vals[is_num_idx] * multiplier)
             }
             
             if (strip_units) {
