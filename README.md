@@ -225,8 +225,15 @@ Redact it or keep it local unless sharing with the selected model is authorized.
 
 For type-preserving use in trusted R workflows, read `readRDS(artifacts$rds)$data`.
 When importing `artifacts$csv`, use the column metadata to load identifier
-columns as text. For example, the Numbers demo keeps `001` in `record_code`
-with `read.csv(artifacts$csv, colClasses = c(record_code = "character"))`.
+columns as text. If blank fields should be read as missing, set
+`na.strings = ""` explicitly so R does not treat the literal text `NA` as
+missing. For example, to retain a code such as `001`:
+
+```r
+read.csv(artifacts$csv, colClasses = c(record_code = "character"), na.strings = "")
+```
+
+Use the RDS if you need to distinguish a literal empty string from a missing value.
 
 For a first job, select an entry from `tool.examples` in the `describe` response
 and use its `request` object. Each template names an installed demo file and its
