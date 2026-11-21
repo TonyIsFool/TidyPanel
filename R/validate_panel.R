@@ -7,6 +7,7 @@
 #' gap detection. Returns a structured report and optionally prints a summary.
 #' The IQR check uses finite observations only and requires at least four.
 #' Infinite values are not counted as missing.
+#' Time-gap checks also skip nonfinite time values.
 #'
 #' @param data A `data.frame`. The cleaned panel data to validate.
 #' @param time_col A character string. Optional. Name of the time/date column to
@@ -100,7 +101,7 @@ validate_panel <- function(data,
     if (!is.null(time_col) && time_col %in% colnames(data)) {
         t_vals <- data[[time_col]]
         if (inherits(t_vals, "Date") || is.numeric(t_vals)) {
-            t_sorted <- sort(unique(t_vals[!is.na(t_vals)]))
+            t_sorted <- sort(unique(t_vals[is.finite(t_vals)]))
             if (length(t_sorted) >= 3) {
                 diffs <- diff(t_sorted)
                 expected_diff <- as.numeric(names(sort(table(diffs), decreasing = TRUE))[1])

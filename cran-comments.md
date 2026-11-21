@@ -1,4 +1,10 @@
-# Release (v0.2.141)
+# Release (v0.2.142)
+
+The optional post-cleaning time-gap check skips infinite times, so they
+cannot create spurious gaps. Finite time-gap results, missing counts, the
+reader, the Agent request schema and the four fictional examples are unchanged.
+
+## Previous IQR Maintenance (v0.2.141)
 
 The post-cleaning IQR check uses at least four finite numeric observations,
 so infinities do not crash or distort this check. Missing-value counts,

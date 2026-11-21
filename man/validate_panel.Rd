@@ -36,6 +36,7 @@ columns that should be numeric but remain character, and optional time-series
 gap detection. Returns a structured report and optionally prints a summary.
 The IQR check uses finite observations only and requires at least four.
 Infinite values are not counted as missing.
+Time-gap checks also skip nonfinite time values.
 }
 \examples{
 # Toy example: validate a simple data frame
