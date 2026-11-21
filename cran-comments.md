@@ -1,4 +1,10 @@
-# Release (v0.2.140)
+# Release (v0.2.141)
+
+The post-cleaning IQR check uses at least four finite numeric observations,
+so infinities do not crash or distort this check. Missing-value counts,
+the reader, the Agent request schema and the four fictional examples are unchanged.
+
+## Previous Unit-Label Maintenance (v0.2.140)
 
 The standalone unit-normalization helper keeps the original headers of
 nonnumeric columns when no observations can be scaled. Existing scaling,

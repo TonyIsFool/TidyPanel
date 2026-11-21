@@ -34,6 +34,8 @@ A named list with quality metrics per column and summary flags.
 It checks for NA rates, outliers (via IQR), duplicate rows, sparse columns,
 columns that should be numeric but remain character, and optional time-series
 gap detection. Returns a structured report and optionally prints a summary.
+The IQR check uses finite observations only and requires at least four.
+Infinite values are not counted as missing.
 }
 \examples{
 # Toy example: validate a simple data frame

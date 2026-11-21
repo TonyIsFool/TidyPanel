@@ -5,6 +5,8 @@
 #' It checks for NA rates, outliers (via IQR), duplicate rows, sparse columns,
 #' columns that should be numeric but remain character, and optional time-series
 #' gap detection. Returns a structured report and optionally prints a summary.
+#' The IQR check uses finite observations only and requires at least four.
+#' Infinite values are not counted as missing.
 #'
 #' @param data A `data.frame`. The cleaned panel data to validate.
 #' @param time_col A character string. Optional. Name of the time/date column to
@@ -60,13 +62,16 @@ validate_panel <- function(data,
         n_outliers <- 0L
         should_be_numeric <- FALSE
         if (is.numeric(col) && n_valid >= 4) {
-            q1 <- quantile(col, 0.25, na.rm = TRUE)
-            q3 <- quantile(col, 0.75, na.rm = TRUE)
-            iqr_val <- q3 - q1
-            if (iqr_val > 0) {
-                lower <- q1 - 3.0 * iqr_val
-                upper <- q3 + 3.0 * iqr_val
-                n_outliers <- sum(col < lower | col > upper, na.rm = TRUE)
+            finite_vals <- valid_vals[is.finite(valid_vals)]
+            if (length(finite_vals) >= 4L) {
+                q1 <- quantile(finite_vals, 0.25)
+                q3 <- quantile(finite_vals, 0.75)
+                iqr_val <- q3 - q1
+                if (iqr_val > 0) {
+                    lower <- q1 - 3.0 * iqr_val
+                    upper <- q3 + 3.0 * iqr_val
+                    n_outliers <- sum(finite_vals < lower | finite_vals > upper)
+                }
             }
         } else if (is.character(col) && n_valid >= 3) {
             # Check if this char column should have been converted to numeric
