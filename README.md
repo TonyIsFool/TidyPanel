@@ -5,7 +5,7 @@
 <p>
   <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
-  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-154_source_groups-167D68?style=flat-square" alt="154 deduplicated public-data source groups in cumulative project validation"></a>
+  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-155_source_groups-167D68?style=flat-square" alt="155 deduplicated public-data source groups in cumulative project validation"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
@@ -58,7 +58,7 @@ or automatic registration with every agent.
 
 ### Public Data From Around The World. Tested Beyond Toy Examples.
 
-| **154** | **5** | **0** |
+| **155** | **5** | **0** |
 | :---: | :---: | :---: |
 | Public-data source groups, deduplicated | Data domains | AI inference tokens for local cleaning |
 
