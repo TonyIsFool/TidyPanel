@@ -159,6 +159,12 @@ The total row is removed and the two yearly columns become a four-row long
 table. Replace `input` with your own file path; omit `auto_pivot = TRUE`
 to keep wide columns.
 
+If a measure you need starts with a subtotal label such as `Total`, the
+reader may drop that column. Give the measure a descriptive name without
+the subtotal prefix in a prepared input table. Check that it remains in
+`result$data`; `Subtotal Columns Amputated` in the audit reports detected
+subtotal column removals.
+
 ## Agent Workflow
 
 **One request -> one JSON response -> complete local result files.**
