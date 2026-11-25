@@ -24,7 +24,8 @@ A named list with the following elements:
 \item{\code{n_aggregation_rows}}{Number of suspected Total/Sum aggregation rows found.}
 \item{\code{n_phantom_cols}}{Number of fully-empty ghost columns.}
 \item{\code{n_data_blocks}}{Total number of disjoint data panels found in the sheet.}
-\item{\code{recommended_call}}{A character string with a suggested \code{read_messy_panel()} call.}
+\item{\code{recommended_call}}{A character string with a suggested \code{read_messy_panel()} call.
+For a multi-sheet workbook, it selects the worksheet that was analyzed.}
 }
 }
 \description{

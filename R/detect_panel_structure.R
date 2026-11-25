@@ -21,7 +21,8 @@
 #'     \item{`n_aggregation_rows`}{Number of suspected Total/Sum aggregation rows found.}
 #'     \item{`n_phantom_cols`}{Number of fully-empty ghost columns.}
 #'     \item{`n_data_blocks`}{Total number of disjoint data panels found in the sheet.}
-#'     \item{`recommended_call`}{A character string with a suggested `read_messy_panel()` call.}
+#'     \item{`recommended_call`}{A character string with a suggested `read_messy_panel()` call.
+#'       For a multi-sheet workbook, it selects the worksheet that was analyzed.}
 #'   }
 #'
 #' @examples
@@ -264,7 +265,14 @@ detect_panel_structure <- function(path, sheet = 1, verbose = TRUE) {
         rec_parts <- c(rec_parts, paste0('  file_path = "', basename(path), '",'))
     }
     if (n_sheets > 1) {
-        rec_parts <- c(rec_parts, '  sheet = 1,  # or "ALL" for all sheets')
+        sheet_index <- if (is.character(sheet)) {
+            match(sheet, all_sheets)
+        } else if (is.null(sheet)) {
+            1L
+        } else {
+            floor(sheet)
+        }
+        rec_parts <- c(rec_parts, sprintf("  sheet = %d,", sheet_index))
     }
     if (n_data_blocks > 1) {
         rec_parts <- c(rec_parts, "  extract_all_blocks = TRUE,")

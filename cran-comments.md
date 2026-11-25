@@ -1,4 +1,10 @@
-# Release (v0.2.142)
+# Release (v0.2.143)
+
+The structure report's recommended cleaning call selects the worksheet that
+was actually analyzed, rather than always selecting the first sheet.
+The reader, Agent request schema and four fictional examples are unchanged.
+
+## Previous Time-Gap Maintenance (v0.2.142)
 
 The optional post-cleaning time-gap check skips infinite times, so they
 cannot create spurious gaps. Finite time-gap results, missing counts, the
