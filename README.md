@@ -9,7 +9,7 @@
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
-<p><a href="#for-ai-agents">For AI Agents</a> | <a href="#quick-start">Quick Start</a> | <a href="#four-small-examples">Four Examples</a> | <a href="AGENTS.md">Agent Guide</a></p>
+<p><a href="#for-ai-agents">For AI Agents</a> | <a href="#quick-start">Quick Start</a> | <a href="#four-small-examples">Four Examples</a> | <a href="AGENTS.md">Agent Guide</a> | <a href="#contact">Research &amp; Contact</a></p>
 </div>
 
 **CSV / Excel / TSV / TXT / RDB -> local cleaning -> files + audit -> agent reasoning.**
@@ -414,4 +414,11 @@ this is not an out-of-core reader.
 
 ## Contact
 
-**Tony Lu** | [xulunt123@gmail.com](mailto:xulunt123@gmail.com)
+**Advanced cleaning research.** The public edition is available for the
+workflows documented above. More advanced methods for complex tables are
+still under research and are not included in the public package.
+
+Have a table or workflow the public edition doesn't cover? Feel free to email
+**Tony Lu** at [xulunt123@gmail.com](mailto:xulunt123@gmail.com) anytime. A short
+description or a redacted example is enough to start. Please do not send
+personal or confidential data.
