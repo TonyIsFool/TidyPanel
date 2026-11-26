@@ -5,7 +5,7 @@
 <p>
   <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
-  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-160_source_groups-167D68?style=flat-square" alt="160 deduplicated public-data source groups in cumulative project validation"></a>
+  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-180_source_groups-167D68?style=flat-square" alt="180 deduplicated public-data source groups in cumulative project validation"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
@@ -58,21 +58,23 @@ or automatic registration with every agent.
 
 ### Public Data From Around The World. Tested Beyond Toy Examples.
 
-| **160** | **5** | **0** |
+| **180** | **5** | **0** |
 | :---: | :---: | :---: |
-| Public-data source groups, deduplicated | Data domains | AI inference tokens for local cleaning |
+| Public-data source groups, deduplicated | Distinct subject areas | AI inference tokens for local cleaning |
 
-**Real-world tables, not just tidy demos.** Cumulative project validation draws on
-public data from international organizations, national data portals and scientific
-services. It covers cleaning checks and clear rejection of unsupported layouts.
+**The 5 distinct subject areas covered:**
 
-| Domain | Tables checked |
+| Subject area | Examples of tables checked |
 | --- | --- |
 | Economics and public statistics | Prices, exchange rates and population series |
 | Weather and environment | Station observations and climate tables |
 | Science and health | Measurements and aggregate indicators |
 | Transport and geography | Counts, schedules and coded reference tables |
 | Energy and industry | Consumption and production observations |
+
+**Real-world tables, not just tidy demos.** Cumulative project validation draws on
+public data from international organizations, national data portals and scientific
+services. It covers cleaning checks and clear rejection of unsupported layouts.
 
 **Counting rule:** source groups include databases, data services, repositories and
 research publishing projects. Repeated files, formats, stations and time windows
