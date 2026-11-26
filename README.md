@@ -130,7 +130,7 @@ install.packages(dirname(file.choose()), repos = NULL, type = "source")
 <summary>Already have a built R source archive?</summary>
 
 ```r
-install.packages("TidyPanel_0.2.143.tar.gz", repos = NULL, type = "source")
+install.packages("TidyPanel_0.2.144.tar.gz", repos = NULL, type = "source")
 ```
 
 A built source archive also includes the example guide:
@@ -177,7 +177,7 @@ cleanup locally without invoking a model; your agent chooses the task and how
 much of the resulting data to read. The data preview is off by default;
 `preview_rows` does not suppress the separate audit preview.
 
-Install the matching **v0.2.143 public source package** first. The launcher
+Install the matching **v0.2.144 public source package** first. The launcher
 checks the installed edition and version before loading it. This is a local
 process interface, not an MCP server or automatic global tool registration.
 
@@ -271,7 +271,7 @@ same Rscript environment:
 Rscript --vanilla -e "p <- find.package('TidyPanel'); print(read.dcf(file.path(p, 'DESCRIPTION'), fields = c('Version', 'Config/TidyPanel/Edition')))"
 ```
 
-For this launcher, the version must be `0.2.143` and the edition `public`.
+For this launcher, the version must be `0.2.144` and the edition `public`.
 If no package is found or either value differs, install the matching public
 source package into the library used by that Rscript session.
 

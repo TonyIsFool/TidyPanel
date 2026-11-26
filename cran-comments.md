@@ -1,4 +1,11 @@
-# Release (v0.2.143)
+# Release (v0.2.144)
+
+Slash-form column headings that cannot be parsed as dates are standardized as
+text instead of being replaced by position-only names. Successful date
+conversions and the table's cell values are unchanged. The Agent request
+schema and the four fictional examples are unchanged.
+
+## Previous Worksheet Recommendation Maintenance (v0.2.143)
 
 The structure report's recommended cleaning call selects the worksheet that
 was actually analyzed, rather than always selecting the first sheet.

@@ -20,6 +20,7 @@ into ISO date strings (\code{2021-01-01}), and maps common financial/academic sy
 \code{permno}, \code{cusip}) to standard names (\code{id}, \code{ticker}).
 Explicit identifier suffixes are protected from approximate financial mappings.
 Qualified population income measures retain their meaning rather than becoming profit.
+Slash-form column labels that cannot be parsed as dates are cleaned as text.
 }
 \examples{
 # Toy example: standardize column names in a data frame

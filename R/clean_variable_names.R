@@ -10,6 +10,7 @@
 #' `permno`, `cusip`) to standard names (`id`, `ticker`).
 #' Explicit identifier suffixes are protected from approximate financial mappings.
 #' Qualified population income measures retain their meaning rather than becoming profit.
+#' Slash-form column labels that cannot be parsed as dates are cleaned as text.
 #'
 #' @param data A `data.frame`. The data frame with messy column names.
 #' @return A `data.frame` with the same data but standardized column names.
@@ -82,13 +83,15 @@ clean_variable_names <- function(data) {
       clean_names[is_excel_date] <- as.character(as.Date(as.numeric(clean_names[is_excel_date]), origin = "1899-12-30"))
   }
   
-  is_slash_date <- grepl("^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$", clean_names)
-  if (any(is_slash_date)) {
-      two_digit_year <- grepl("/[0-9]{2}$", clean_names[is_slash_date])
-      parsed_dates <- rep(as.Date(NA), sum(is_slash_date))
-      parsed_dates[two_digit_year] <- as.Date(clean_names[is_slash_date][two_digit_year], format = "%m/%d/%y")
-      parsed_dates[!two_digit_year] <- as.Date(clean_names[is_slash_date][!two_digit_year], format = "%m/%d/%Y")
-      clean_names[is_slash_date] <- as.character(parsed_dates)
+  slash_columns <- which(grepl("^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$", clean_names))
+  if (length(slash_columns)) {
+      slash_labels <- clean_names[slash_columns]
+      two_digit_year <- grepl("/[0-9]{2}$", slash_labels)
+      parsed_dates <- rep(as.Date(NA), length(slash_labels))
+      parsed_dates[two_digit_year] <- as.Date(slash_labels[two_digit_year], format = "%m/%d/%y")
+      parsed_dates[!two_digit_year] <- as.Date(slash_labels[!two_digit_year], format = "%m/%d/%Y")
+      parsed <- !is.na(parsed_dates)
+      clean_names[slash_columns[parsed]] <- as.character(parsed_dates[parsed])
   }
   
   dict <- c(
