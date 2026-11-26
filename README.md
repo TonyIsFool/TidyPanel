@@ -5,9 +5,9 @@
 <p>
   <img src="https://img.shields.io/badge/cleaning-AI_tokens_0-167D68?style=flat-square" alt="The local cleaning step consumes 0 AI model tokens">
   <img src="https://img.shields.io/badge/R-4.1%2B-276DC3?style=flat-square" alt="R 4.1 or later">
-  <a href="#validation-coverage"><img src="https://img.shields.io/badge/public_data-230_source_groups-167D68?style=flat-square" alt="230 deduplicated public-data source groups in cumulative project validation"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-555555?style=flat-square" alt="MIT license"></a>
 </p>
+<p><a href="#validation-coverage"><strong>230 verified public-data source groups</strong></a> across 5 subject areas.</p>
 <p><a href="#download-and-install"><img src="https://img.shields.io/badge/Download_%26_Install-R_source-0969DA?style=for-the-badge" alt="Download and install the R source package"></a></p>
 <p><a href="#for-ai-agents">For AI Agents</a> | <a href="#quick-start">Quick Start</a> | <a href="#four-small-examples">Four Examples</a> | <a href="AGENTS.md">Agent Guide</a> | <a href="#contact">Research &amp; Contact</a></p>
 </div>
